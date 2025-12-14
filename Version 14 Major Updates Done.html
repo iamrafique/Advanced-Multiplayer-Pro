@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Master Pro - V1.6.9 (Smart CSV)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .bg-main-gradient { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #3b82f6 100%); min-height: 100vh; }
+        .glass-card { background: white; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        
+        .btn-primary { background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%); color: white; }
+        .tab-active { color: #6366f1; border-bottom: 2px solid #6366f1; font-weight: 600; }
+        .tab-inactive { color: #64748b; font-weight: 500; }
+        
+        .timer-blink { animation: blink-red 1s infinite; }
+        @keyframes blink-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } }
+        .online-dot { animation: pulse-green 2s infinite; }
+        
+        .asked-in-tag { font-size: 10px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; display: inline-block; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Modal Overlay - FIXED Z-INDEX */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
+        
+        /* Custom Scroll */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Toggle Switch */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+    </style>
+</head>
+<body class="bg-main-gradient text-gray-800">
+
+<div id="root"></div>
+
+<script type="text/babel">
+    // --- 1. FIREBASE SETUP ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyCyoDvZ1S_y0-Epyt0bT6nivV8JGcoEsjA",
+        authDomain: "quiz-master-pro-3f73e.firebaseapp.com",
+        projectId: "quiz-master-pro-3f73e",
+        storageBucket: "quiz-master-pro-3f73e.firebasestorage.app",
+        messagingSenderId: "971686527480",
+        appId: "1:971686527480:web:3cd2be4655a65fff1d960d"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+    const ADMIN_EMAIL = "admin@rafique.com"; 
+    const ADMIN_EMAIL_HARDCODED = "admin@admin.com"; 
+    const UPI_ID = "iamrafique-1@okhdfcbank";
+
+    // --- 2. ICONS ---
+    const Icons = {
+        Trophy: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>,
+        Users: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+        File: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>,
+        Trash: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+        Upload: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
+        Logout: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>,
+        X: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+        Clock: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+        XCircle: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
+        Back: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>,
+        Menu: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
+        Download: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
+        Chart: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
+        Tag: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>,
+        Settings: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+        Dollar: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+        Info: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>,
+        Phone: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+        Mail: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
+        Send: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+        Facebook: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>,
+        Instagram: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>,
+        Lock: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+        Unlock: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>,
+        ChevronDown: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
+        Briefcase: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+        Eye: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+        Edit: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+        Move: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="19 9 22 12 19 15"/><polyline points="15 19 12 22 9 19"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>,
+        Copy: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
+        Folder: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
+        ArrowRight: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+        Plus: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    };
+
+    const Copyright = () => (
+        <div className="mt-8 text-center text-xs text-gray-400 pb-4">© Developed by Rafique Ul Islam</div>
+    );
+
+    const { useState, useEffect, useRef } = React;
+
+    // --- 3. COMPONENTS ---
+
+    // 3.0 MODALS
+    const AboutModal = ({ onClose }) => (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="glass-card max-w-2xl w-full mx-4 p-6 relative max-h-[80vh] overflow-y-auto custom-scroll animate-fade-in" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><Icons.X className="w-6 h-6"/></button>
+                <div className="text-center mb-6">
+                    <Icons.Trophy className="w-12 h-12 text-purple-600 mx-auto mb-2" />
+                    <h2 className="text-2xl font-bold text-gray-800">About Quiz Master Pro</h2>
+                    <div className="text-sm font-bold text-purple-600 uppercase tracking-widest mt-1">Version 1.6.9 (Smart CSV)</div>
+                </div>
+                <div className="space-y-6">
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                        <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">👨‍💻 Developer</h3>
+                        <p className="text-gray-600 text-sm">This application is designed and developed by <span className="font-bold text-purple-700">Rafique Ul Islam</span>.</p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-800 mb-3 border-b pb-2">🚀 Technical Architecture</h3>
+                        <ul className="space-y-2 text-sm text-gray-600">
+                            <li className="flex gap-2"><span className="font-bold min-w-[80px]">Frontend:</span> React.js 18, Tailwind CSS.</li>
+                            <li className="flex gap-2"><span className="font-bold min-w-[80px]">Backend:</span> Google Firebase (Auth & Realtime DB).</li>
+                            <li className="flex gap-2"><span className="font-bold min-w-[80px]">Logic:</span> Multi-Tier Exam Selection & Spaced Repetition.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-800 mb-3 border-b pb-2">🔒 Privacy & Data</h3>
+                        <div className="text-sm text-gray-600 space-y-2"><p>We securely store: Identity (Name, Phone, etc.), Performance Stats, and Membership status.</p></div>
+                    </div>
+                </div>
+                <div className="mt-8 text-center"><button onClick={onClose} className="btn-primary px-8 py-2 rounded-lg font-bold">Close</button></div>
+            </div>
+        </div>
+    );
+
+    const ContactModal = ({ onClose, links }) => (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="glass-card max-w-sm w-full mx-4 p-6 relative animate-fade-in" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><Icons.X className="w-6 h-6"/></button>
+                <div className="text-center mb-6">
+                    <Icons.Phone className="w-12 h-12 text-blue-600 mx-auto mb-2" />
+                    <h2 className="text-2xl font-bold text-gray-800">Contact Us</h2>
+                    <p className="text-gray-500 text-sm">Get in touch via</p>
+                </div>
+                <div className="space-y-3">
+                    {links.email && <a href={`mailto:${links.email}`} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"><Icons.Mail className="w-5 h-5 text-gray-600"/><span className="font-medium text-sm text-gray-700">{links.email}</span></a>}
+                    {links.phone && <a href={`tel:${links.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"><Icons.Phone className="w-5 h-5 text-gray-600"/><span className="font-medium text-sm text-gray-700">{links.phone}</span></a>}
+                    {links.whatsapp && <a href={links.whatsapp} target="_blank" className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition"><div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">W</div><span className="font-medium text-sm text-green-700">WhatsApp</span></a>}
+                    {links.telegram && <a href={links.telegram} target="_blank" className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"><Icons.Send className="w-5 h-5 text-blue-500"/><span className="font-medium text-sm text-blue-700">Telegram</span></a>}
+                    {links.instagram && <a href={links.instagram} target="_blank" className="flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg border border-pink-200 transition"><Icons.Instagram className="w-5 h-5 text-pink-600"/><span className="font-medium text-sm text-pink-700">Instagram</span></a>}
+                    {links.facebook && <a href={links.facebook} target="_blank" className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"><Icons.Facebook className="w-5 h-5 text-blue-800"/><span className="font-medium text-sm text-blue-900">Facebook</span></a>}
+                </div>
+            </div>
+        </div>
+    );
+
+    // 3.1 AUTH & LANDING
+    const LandingPage = ({ setScreen }) => {
+        const [showAbout, setShowAbout] = useState(false);
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="glass-card w-full max-w-md p-8 text-center animate-fade-in relative">
+                    <button onClick={() => setShowAbout(true)} className="absolute top-4 right-4 text-gray-400 hover:text-purple-600 transition flex flex-col items-center">
+                        <Icons.Info className="w-5 h-5" />
+                        <span className="text-[9px] font-bold">ABOUT</span>
+                    </button>
+                    <Icons.Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+                    <h1 className="text-3xl font-bold text-gray-800 mb-2">Quiz Master Pro</h1>
+                    <p className="text-gray-500 mb-8">Master your exams with live quizzes.</p>
+                    <button onClick={() => setScreen('login')} className="w-full btn-primary py-3 rounded-lg font-bold shadow-lg hover:opacity-90 transition mb-4">Login</button>
+                    <button onClick={() => setScreen('signup')} className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-200 transition">Create Account</button>
+                    <Copyright />
+                </div>
+                {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+            </div>
+        );
+    };
+
+    const AuthForm = ({ type, setScreen }) => {
+        const [email, setEmail] = useState("");
+        const [password, setPassword] = useState("");
+        const [name, setName] = useState("");
+        const [phone, setPhone] = useState("");
+        const [age, setAge] = useState("");
+        const [gender, setGender] = useState("Prefer not to say");
+        const [loading, setLoading] = useState(false);
+
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            try {
+                if (type === 'login') {
+                    await auth.signInWithEmailAndPassword(email, password);
+                } else {
+                    const cred = await auth.createUserWithEmailAndPassword(email, password);
+                    await db.ref(`users/${cred.user.uid}`).set({
+                        name, email, phone, age, gender, type: 'FREE', isBlocked: false, joined: Date.now()
+                    });
+                }
+            } catch (err) {
+                alert(err.message);
+                setLoading(false);
+            }
+        };
+
+        const handleForgot = async () => {
+            if(!email) return alert("Enter your email first.");
+            try { await auth.sendPasswordResetEmail(email); alert("Password reset email sent!"); } catch (e) { alert(e.message); }
+        };
+
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="glass-card w-full max-w-md p-8 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-center mb-6">{type === 'login' ? 'Welcome Back' : 'Join Us'}</h2>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {type === 'signup' && (
+                            <>
+                                <input className="w-full p-3 border rounded-lg" placeholder="Full Name" value={name} onChange={e=>setName(e.target.value)} required />
+                                <div className="flex gap-2">
+                                    <input className="w-1/2 p-3 border rounded-lg" placeholder="Phone" value={phone} onChange={e=>setPhone(e.target.value)} required />
+                                    <input className="w-1/2 p-3 border rounded-lg" type="number" placeholder="Age" value={age} onChange={e=>setAge(e.target.value)} required />
+                                </div>
+                                <select className="w-full p-3 border rounded-lg" value={gender} onChange={e=>setGender(e.target.value)}>
+                                    <option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option>
+                                </select>
+                            </>
+                        )}
+                        <input className="w-full p-3 border rounded-lg" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required />
+                        <input className="w-full p-3 border rounded-lg" type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
+                        {type === 'login' && <div className="text-right"><button type="button" onClick={handleForgot} className="text-xs text-purple-600 hover:underline">Forgot Password?</button></div>}
+                        <button disabled={loading} className="w-full btn-primary py-3 rounded-lg font-bold">{loading ? 'Processing...' : (type === 'login' ? 'Login' : 'Sign Up')}</button>
+                    </form>
+                    <div className="mt-4 text-center text-sm cursor-pointer text-blue-600 hover:underline" onClick={() => setScreen(type === 'login' ? 'signup' : 'login')}>
+                        {type === 'login' ? "New? Create Account" : "Have account? Login"}
+                    </div>
+                    <Copyright />
+                </div>
+            </div>
+        );
+    };
+
+    // --- 3.2 ADMIN DASHBOARD ---
+    const AdminDashboard = ({ user }) => {
+        const [tab, setTab] = useState('overview');
+        const [users, setUsers] = useState([]);
+        const [promos, setPromos] = useState([]);
+        
+        // Data States
+        const [exams, setExams] = useState([]); 
+        const [folders, setFolders] = useState([]);
+        const [files, setFiles] = useState([]);
+        
+        const [settings, setSettings] = useState({ contact: {} });
+        
+        // Navigation State (Hierarchy)
+        const [currentExam, setCurrentExam] = useState(null); // Level 1
+        const [currentFolder, setCurrentFolder] = useState(null); // Level 2
+        
+        const [selectedUser, setSelectedUser] = useState(null); 
+        const [showMobileMenu, setShowMobileMenu] = useState(false);
+        const [uploading, setUploading] = useState(false);
+        const [actionModal, setActionModal] = useState(null); // For Move/Copy
+        
+        const [editingExam, setEditingExam] = useState(null);
+        const [editName, setEditName] = useState("");
+        const [editingFolder, setEditingFolder] = useState(null); // Rename Folder
+        
+        const [proPrice, setProPrice] = useState("999");
+        const [freeLimit, setFreeLimit] = useState("10");
+
+        useEffect(() => {
+            db.ref('users').on('value', s => setUsers(s.val() ? Object.entries(s.val()).map(([k,v])=>({uid:k, ...v})) : []));
+            db.ref('promos').on('value', s => setPromos(s.val() ? Object.entries(s.val()).map(([k,v])=>({code:k, ...v})) : []));
+            db.ref('settings').on('value', s => {
+                if(s.val()) {
+                    setSettings(s.val());
+                    setProPrice(s.val().proPrice || "999");
+                    setFreeLimit(s.val().freeLimit || "10");
+                }
+            });
+            // Fetch hierarchy
+            db.ref('exams').on('value', s => setExams(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            db.ref('folders').on('value', s => setFolders(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            db.ref('files').on('value', s => setFiles(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+        }, []);
+
+        // --- SMART FEATURE: AUTO-MIGRATION OF OLD FILES ---
+        useEffect(() => {
+            if (files.length > 0 && exams.length > 0) {
+                const unorganized = files.filter(f => !f.folderId && f.examId && f.subject);
+                if (unorganized.length > 0) {
+                    console.log("Migrating", unorganized.length, "files...");
+                    unorganized.forEach(async (file) => {
+                        // Check if a folder already exists for this subject + exam
+                        const existingFolder = folders.find(fd => fd.name.toLowerCase() === file.subject.toLowerCase() && fd.examId === file.examId);
+                        let folderId = existingFolder ? existingFolder.id : null;
+                        
+                        if (!folderId) {
+                            // Create new folder
+                            const newFolderRef = db.ref('folders').push();
+                            folderId = newFolderRef.key;
+                            await newFolderRef.set({ name: file.subject, examId: file.examId });
+                        }
+                        
+                        // Move file to folder
+                        db.ref(`files/${file.id}`).update({ folderId: folderId });
+                    });
+                }
+            }
+        }, [files, folders, exams]);
+
+        // UPDATED: handleCSV now adds header transform
+        const handleCSV = (e) => {
+            if(!currentFolder) return alert("System Error: No Folder Selected");
+            const file = e.target.files[0];
+            if(!file) return;
+            setUploading(true);
+            Papa.parse(file, {
+                header: true,
+                transformHeader: h => h.trim(), // Fix: Remove BOM/spaces from headers
+                complete: (res) => {
+                    const cleanData = res.data.filter(r => r.Question || r.question);
+                    const questions = cleanData.map(q => ({ ...q, info: q["Asked in"] || q["Exam"] || q["Shift"] || "" }));
+                    const key = db.ref('files').push().key;
+                    // Store inside FOLDER
+                    db.ref(`files/${key}`).set({ 
+                        name: file.name.replace('.csv',''), 
+                        subject: currentFolder.name, // Keep for fallback
+                        folderId: currentFolder.id,
+                        examId: currentExam.id, // Keep for easier filtering
+                        count: questions.length, 
+                        date: new Date().toISOString().split('T')[0], 
+                        isPro: false 
+                    });
+                    db.ref(`file_questions/${key}`).set(questions);
+                    setUploading(false);
+                    alert("Uploaded to " + currentFolder.name);
+                }
+            });
+        };
+
+        // --- HIERARCHY LOGIC ---
+        const createExam = (e) => {
+            e.preventDefault();
+            const name = new FormData(e.target).get('name');
+            if(name) { db.ref('exams').push({ name, date: Date.now() }); e.target.reset(); }
+        };
+        const createFolder = (e) => {
+            e.preventDefault();
+            const name = new FormData(e.target).get('name');
+            if(name && currentExam) { db.ref('folders').push({ name, examId: currentExam.id }); e.target.reset(); }
+        };
+
+        // Actions
+        const deleteExam = (id) => { if(confirm("Delete Exam? This will hide linked folders.")) db.ref(`exams/${id}`).remove(); };
+        const deleteFolder = (id) => {
+            const hasFiles = files.some(f => f.folderId === id);
+            if (hasFiles) return alert("❌ Cannot delete! Folder is not empty. Delete files first.");
+            if(confirm("Delete Folder?")) db.ref(`folders/${id}`).remove();
+        };
+        const deleteFile = (id) => { if(confirm("Delete File?")) { db.ref(`files/${id}`).remove(); db.ref(`file_questions/${id}`).remove(); } };
+        
+        // Renaming
+        const saveExamName = (id) => { if(editName.trim()) { db.ref(`exams/${id}`).update({name: editName}); setEditingExam(null); } };
+        const saveFolderName = (id) => { if(editName.trim()) { db.ref(`folders/${id}`).update({name: editName}); setEditingFolder(null); } };
+
+        // Move / Copy Logic
+        const handleActionSubmit = async () => {
+            if(!actionModal || !actionModal.targetExam || !actionModal.targetFolder) return alert("Select Exam & Folder");
+            
+            if (actionModal.type === 'move') {
+                await db.ref(`files/${actionModal.file.id}`).update({ 
+                    examId: actionModal.targetExam, 
+                    folderId: actionModal.targetFolder,
+                    subject: folders.find(f=>f.id===actionModal.targetFolder)?.name // Update fallback name
+                });
+                alert("File Moved!");
+            } else {
+                // COPY LOGIC
+                const oldFile = actionModal.file;
+                const qsSnap = await db.ref(`file_questions/${oldFile.id}`).once('value');
+                const qs = qsSnap.val();
+                
+                const newKey = db.ref('files').push().key;
+                await db.ref(`files/${newKey}`).set({
+                    ...oldFile,
+                    id: null, // Clear old ID
+                    examId: actionModal.targetExam,
+                    folderId: actionModal.targetFolder,
+                    subject: folders.find(f=>f.id===actionModal.targetFolder)?.name,
+                    name: oldFile.name + " (Copy)"
+                });
+                await db.ref(`file_questions/${newKey}`).set(qs);
+                alert("File Copied!");
+            }
+            setActionModal(null);
+        };
+        
+        // Downloads & Toggles
+        const toggleFilePro = (file) => { db.ref(`files/${file.id}`).update({ isPro: !file.isPro }); };
+        const downloadFile = async (id, fileName) => {
+            const snap = await db.ref(`file_questions/${id}`).once('value');
+            const data = snap.val();
+            if (!data) return alert("No data");
+            const blob = new Blob([Papa.unparse(data)], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+        };
+
+        // RESTORED ADMIN USER FUNCTIONS
+        const toggleUserType = (uid, currentType) => { const newType = currentType === 'PRO' ? 'FREE' : 'PRO'; db.ref(`users/${uid}`).update({ type: newType }); };
+        const toggleBlockUser = (uid, currentStatus) => { db.ref(`users/${uid}`).update({ isBlocked: !currentStatus }); };
+        const approveUser = (uid) => { db.ref(`users/${uid}`).update({ type: 'PRO', paymentStatus: 'approved' }); };
+        
+        // RESTORED PROMO FUNCTIONS
+        const createPromo = (e) => {
+            e.preventDefault();
+            const data = new FormData(e.target);
+            db.ref(`promos/${data.get('code')}`).set({ discount: data.get('discount'), limit: data.get('limit'), status: 'active' });
+            e.target.reset();
+        };
+        const deletePromo = (code) => db.ref(`promos/${code}`).remove();
+
+        // --- RENDER HELPERS ---
+        const renderBreadcrumbs = () => (
+            <div className="flex items-center gap-2 text-sm mb-4 text-gray-500 font-medium">
+                <button onClick={()=>{setCurrentExam(null); setCurrentFolder(null);}} className="hover:text-purple-600">Exams</button>
+                {currentExam && <><Icons.ArrowRight className="w-3 h-3"/> <button onClick={()=>setCurrentFolder(null)} className="hover:text-purple-600">{currentExam.name}</button></>}
+                {currentFolder && <><Icons.ArrowRight className="w-3 h-3"/> <span className="text-gray-800">{currentFolder.name}</span></>}
+            </div>
+        );
+
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+                <div className={`fixed inset-y-0 left-0 transform ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition duration-200 ease-in-out z-40 w-64 bg-white border-r flex flex-col`}>
+                    <div className="p-6 border-b flex items-center justify-between"><span className="font-bold text-xl text-gray-800 flex items-center gap-2"><Icons.Trophy className="text-purple-600"/> Admin</span><button className="md:hidden" onClick={()=>setShowMobileMenu(false)}><Icons.X className="w-5 h-5"/></button></div>
+                    <div className="flex-1 p-4 space-y-2 overflow-y-auto">
+                        <button onClick={()=>{setTab('overview'); setShowMobileMenu(false);}} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition ${tab==='overview' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}><Icons.Chart className="w-5 h-5"/> Overview</button>
+                        <button onClick={()=>{setTab('users'); setShowMobileMenu(false);}} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition ${tab==='users' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}><Icons.Users className="w-5 h-5"/> Users</button>
+                        <button onClick={()=>{setTab('exams'); setShowMobileMenu(false);}} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition ${tab==='exams' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}><Icons.Briefcase className="w-5 h-5"/> Exams & Files</button>
+                        <button onClick={()=>{setTab('promo'); setShowMobileMenu(false);}} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition ${tab==='promo' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}><Icons.Tag className="w-5 h-5"/> Promo Codes</button>
+                        <button onClick={()=>{setTab('settings'); setShowMobileMenu(false);}} className={`w-full text-left px-4 py-3 rounded-lg font-medium flex items-center gap-3 transition ${tab==='settings' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}><Icons.Settings className="w-5 h-5"/> Settings</button>
+                    </div>
+                    <div className="p-4 border-t"><button onClick={()=>auth.signOut()} className="w-full flex items-center justify-center gap-2 text-red-500 font-bold p-2 hover:bg-red-50 rounded"><Icons.Logout className="w-4 h-4"/> Logout</button></div>
+                </div>
+
+                <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+                    <div className="md:hidden flex justify-between items-center mb-4"><h1 className="text-lg font-bold flex items-center gap-2"><Icons.Trophy className="text-purple-600"/> Admin</h1><button onClick={()=>setShowMobileMenu(!showMobileMenu)}><Icons.Menu className="w-6 h-6"/></button></div>
+                    <div className="glass-card p-6 min-h-[500px]">
+                        {tab === 'overview' && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-4 bg-purple-50 rounded-lg border border-purple-100 flex justify-between items-center"><div><div className="text-xs font-bold text-gray-500">TOTAL USERS</div><div className="text-2xl font-bold">{users.length}</div></div><Icons.Users className="w-8 h-8 text-purple-200"/></div>
+                                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-100 flex justify-between items-center"><div><div className="text-xs font-bold text-gray-500">PRO USERS</div><div className="text-2xl font-bold">{users.filter(u=>u.type==='PRO').length}</div></div><Icons.Trophy className="w-8 h-8 text-yellow-200"/></div>
+                                <div className="p-4 bg-green-50 rounded-lg border border-green-100 flex justify-between items-center"><div><div className="text-xs font-bold text-gray-500">REVENUE</div><div className="text-2xl font-bold">₹{users.filter(u=>u.type==='PRO').length * parseInt(proPrice)}</div></div><Icons.Dollar className="w-8 h-8 text-green-200"/></div>
+                            </div>
+                        )}
+
+                        {tab === 'exams' && (
+                            <div className="space-y-4">
+                                {renderBreadcrumbs()}
+                                
+                                {/* VIEW 1: EXAM LIST - SMALL ICON RESTORED */}
+                                {!currentExam && (
+                                    <>
+                                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                                            <h3 className="font-bold mb-3">Create Exam Category</h3>
+                                            <form onSubmit={createExam} className="flex gap-2">
+                                                <input name="name" className="flex-1 p-2 border rounded" placeholder="Exam Name (e.g. NEET, SSC)" required />
+                                                <button className="btn-primary px-4 py-2 rounded font-bold">Add</button>
+                                            </form>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {exams.map(e => (
+                                                <div key={e.id} className="flex justify-between items-center p-3 border rounded bg-white hover:shadow transition">
+                                                    {editingExam === e.id ? (
+                                                        <div className="flex gap-2 flex-1"><input value={editName} onChange={(ev)=>setEditName(ev.target.value)} className="p-1 border rounded w-full"/><button onClick={()=>saveExamName(e.id)} className="text-green-500 font-bold">Save</button></div>
+                                                    ) : (
+                                                        <div onClick={()=>setCurrentExam(e)} className="flex items-center gap-3 cursor-pointer flex-1 p-2">
+                                                            {/* SMALL ICON RESTORED */}
+                                                            <Icons.Briefcase className="w-5 h-5 text-gray-500"/>
+                                                            <span className="font-bold text-lg">{e.name}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex gap-1">
+                                                        <button onClick={()=>{setEditingExam(e.id); setEditName(e.name);}} className="p-2 text-gray-500 hover:bg-gray-100 rounded"><Icons.Edit className="w-4 h-4"/></button>
+                                                        <button onClick={()=>deleteExam(e.id)} className="p-2 text-red-500 hover:bg-red-50 rounded"><Icons.Trash className="w-4 h-4"/></button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* VIEW 2: FOLDER LIST (Inside Exam) - ICONS REMOVED (PURGE) */}
+                                {currentExam && !currentFolder && (
+                                    <>
+                                        {/* REMOVED GIANT ICON FROM HEADER */}
+                                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">📂 {currentExam.name} Folders</h2>
+                                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 mb-4">
+                                            <form onSubmit={createFolder} className="flex gap-2">
+                                                <input name="name" className="flex-1 p-2 border rounded" placeholder={`New Subject Folder (e.g. Geography)`} required />
+                                                <button className="btn-primary px-4 py-2 rounded font-bold flex items-center gap-2"><Icons.Plus className="w-4 h-4"/> Create Folder</button>
+                                            </form>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                            {folders.filter(f => f.examId === currentExam.id).map(f => (
+                                                <div key={f.id} className="flex flex-col p-4 border rounded bg-white hover:shadow-lg transition cursor-pointer relative group" onClick={()=>setCurrentFolder(f)}>
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        {/* LARGE FOLDER ICON REMOVED */}
+                                                        <div className="font-bold text-lg">{f.name}</div>
+                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition" onClick={e=>e.stopPropagation()}>
+                                                            <button onClick={()=>{setEditingFolder(f.id); setEditName(f.name);}} className="p-1 text-gray-400 hover:text-blue-500"><Icons.Edit className="w-3 h-3"/></button>
+                                                            <button onClick={()=>deleteFolder(f.id)} className="p-1 text-gray-400 hover:text-red-500"><Icons.Trash className="w-3 h-3"/></button>
+                                                        </div>
+                                                    </div>
+                                                    {editingFolder === f.id && (
+                                                        <div onClick={e=>e.stopPropagation()} className="flex gap-1 mb-2"><input value={editName} onChange={e=>setEditName(e.target.value)} className="w-full p-1 border text-xs"/><button onClick={()=>saveFolderName(f.id)} className="text-green-500 text-xs">✓</button></div>
+                                                    )}
+                                                    <div className="text-xs text-gray-400 mt-2">{files.filter(file=>file.folderId===f.id).length} Files</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* VIEW 3: FILE LIST (Inside Folder) - LARGE ICONS REMOVED */}
+                                {currentExam && currentFolder && (
+                                    <>
+                                        {/* LARGE ICON REMOVED FROM HEADER - NOW JUST TEXT */}
+                                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">📄 {currentFolder.name} Files</h2>
+                                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                                            <label className="btn-primary px-4 py-2 rounded cursor-pointer text-sm font-bold flex items-center justify-center gap-2 w-full md:w-auto">
+                                                <Icons.Upload className="w-4 h-4"/> Upload CSV to {currentFolder.name}
+                                                <input type="file" hidden accept=".csv" onChange={handleCSV} />
+                                            </label>
+                                            {uploading && <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div className="bg-blue-600 h-2.5 rounded-full w-full animate-pulse"></div></div>}
+                                        </div>
+                                        <div className="space-y-2">
+                                            {files.filter(f => f.folderId === currentFolder.id).map(f => (
+                                                <div key={f.id} className="flex flex-col md:flex-row justify-between items-center p-3 border rounded bg-white gap-3">
+                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                        <div className="bg-blue-100 p-2 rounded text-blue-600"><Icons.File className="w-5 h-5"/></div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-bold text-sm truncate">{f.name}</div>
+                                                            <div className="text-xs text-gray-500">{f.count} Qs • {f.date}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2 items-center flex-shrink-0">
+                                                        <button onClick={()=>setActionModal({type: 'copy', file: f, targetExam: '', targetFolder: ''})} className="text-blue-600 hover:bg-blue-50 p-2 rounded" title="Copy"><Icons.Copy className="w-4 h-4"/></button>
+                                                        <button onClick={()=>setActionModal({type: 'move', file: f, targetExam: '', targetFolder: ''})} className="text-purple-600 hover:bg-purple-50 p-2 rounded" title="Move"><Icons.Move className="w-4 h-4"/></button>
+                                                        <button onClick={()=>toggleFilePro(f)} className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-bold ${f.isPro ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                                                            {f.isPro ? <><Icons.Lock className="w-3 h-3"/> PRO</> : <><Icons.Unlock className="w-3 h-3"/> FREE</>}
+                                                        </button>
+                                                        <button onClick={()=>downloadFile(f.id, f.name)} className="text-gray-400 hover:text-blue-500 p-2"><Icons.Download className="w-4 h-4"/></button>
+                                                        <button onClick={()=>deleteFile(f.id)} className="text-gray-400 hover:text-red-500 p-2"><Icons.Trash className="w-4 h-4"/></button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        
+                        {/* MODAL: MOVE/COPY */}
+                        {actionModal && (
+                            <div className="modal-overlay" onClick={()=>setActionModal(null)}>
+                                <div className="glass-card p-6 w-96 animate-fade-in" onClick={e=>e.stopPropagation()}>
+                                    <h3 className="font-bold mb-4 capitalize">{actionModal.type} "{actionModal.file.name}"</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500">Target Exam</label>
+                                            <select className="w-full p-2 border rounded" onChange={e=>setActionModal({...actionModal, targetExam: e.target.value})}>
+                                                <option value="">Select Exam...</option>
+                                                {exams.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500">Target Folder</label>
+                                            <select className="w-full p-2 border rounded" disabled={!actionModal.targetExam} onChange={e=>setActionModal({...actionModal, targetFolder: e.target.value})}>
+                                                <option value="">Select Folder...</option>
+                                                {folders.filter(f=>f.examId === actionModal.targetExam).map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                            <button onClick={handleActionSubmit} className="flex-1 btn-primary py-2 rounded font-bold capitalize">{actionModal.type}</button>
+                                            <button onClick={()=>setActionModal(null)} className="flex-1 border py-2 rounded">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* RESTORED V1.4 USER TABLE & ACTIONS */}
+                        {tab === 'users' && (
+                            <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-gray-50 text-left"><tr><th className="p-3">User</th><th className="p-3">Status</th><th className="p-3">Actions</th><th className="p-3">Role</th><th className="p-3">Block</th></tr></thead><tbody>{users.map(u => (<tr key={u.uid} className="border-b"><td className="p-3"><div>{u.name}</div><div className="text-xs text-gray-500">{u.email}</div></td><td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${u.type==='PRO'?'bg-yellow-100 text-yellow-700':'bg-gray-100'}`}>{u.type}</span></td><td className="p-3"><div className="flex gap-2"><button onClick={()=>setSelectedUser(u)} className="bg-blue-100 text-blue-600 px-2 py-1 rounded">View</button>{u.paymentStatus === 'pending' && <button onClick={()=>approveUser(u.uid)} className="bg-green-500 text-white px-2 py-1 rounded">Approve</button>}</div></td><td className="p-3"><button onClick={()=>toggleUserType(u.uid, u.type)} className="text-xs underline text-blue-600">Switch</button></td><td className="p-3"><button onClick={()=>toggleBlockUser(u.uid, u.isBlocked)} className={`p-2 rounded text-white ${u.isBlocked ? 'bg-green-500' : 'bg-red-500'}`}>{u.isBlocked ? 'Unblock' : 'Block'}</button></td></tr>))}</tbody></table></div>
+                        )}
+                        
+                        {/* RESTORED V1.4 PROMO TAB */}
+                        {tab === 'promo' && (
+                             <div className="space-y-6"><form onSubmit={createPromo} className="flex gap-2 bg-gray-50 p-4 rounded-lg"><input name="code" placeholder="Code" className="p-2 border rounded w-1/3" required/><input name="discount" type="number" placeholder="%" className="p-2 border rounded w-1/4" required/><input name="limit" type="number" placeholder="Limit" className="p-2 border rounded w-1/4" required/><button className="btn-primary px-4 rounded font-bold text-sm">Add</button></form><div className="space-y-2">{promos.map(p => (<div key={p.code} className="flex justify-between items-center p-3 border rounded bg-white"><div className="font-bold">{p.code} <span className="text-gray-500 font-normal text-sm">({p.discount}% off)</span></div><button onClick={()=>deletePromo(p.code)} className="text-red-500 text-xs font-bold hover:underline">Delete</button></div>))}</div></div>
+                        )}
+
+                        {tab === 'settings' && (
+                            <form onSubmit={(e)=>{e.preventDefault(); db.ref('settings').update({ proPrice, freeLimit, contact: settings.contact }); alert("Saved");}} className="space-y-4 max-w-md">
+                                <h3 className="font-bold text-purple-600 border-b pb-2">Pricing</h3>
+                                <div><label className="text-xs font-bold text-gray-500">Pro Price</label><input type="number" value={proPrice} onChange={e=>setProPrice(e.target.value)} className="w-full p-2 border rounded"/></div>
+                                <h3 className="font-bold text-purple-600 border-b pb-2 pt-4">Contact Details</h3>
+                                <div className="grid grid-cols-2 gap-2"><input name="email" defaultValue={settings.contact?.email} placeholder="Support Email" className="p-2 border rounded"/><input name="phone" defaultValue={settings.contact?.phone} placeholder="Support Phone" className="p-2 border rounded"/></div>
+                                <input name="whatsapp" defaultValue={settings.contact?.whatsapp} placeholder="WhatsApp Link (https://wa.me/...)" className="w-full p-2 border rounded"/>
+                                <input name="telegram" defaultValue={settings.contact?.telegram} placeholder="Telegram Link" className="w-full p-2 border rounded"/>
+                                <input name="instagram" defaultValue={settings.contact?.instagram} placeholder="Instagram Link" className="w-full p-2 border rounded"/>
+                                <input name="facebook" defaultValue={settings.contact?.facebook} placeholder="Facebook Link" className="w-full p-2 border rounded"/>
+                                <button className="btn-primary px-6 py-2 rounded font-bold w-full mt-4">Save All Settings</button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+                {selectedUser && (<div className="modal-overlay"><div className="bg-white p-6 rounded-lg w-full max-w-sm animate-fade-in relative"><button onClick={()=>setSelectedUser(null)} className="absolute top-4 right-4"><Icons.X className="w-5 h-5"/></button><h3 className="font-bold text-xl mb-4">User Details</h3><div className="space-y-2 text-sm"><div><b>Name:</b> {selectedUser.name}</div><div><b>Email:</b> {selectedUser.email}</div><div><b>Phone:</b> {selectedUser.phone}</div><div><b>Age:</b> {selectedUser.age}</div><div><b>Gender:</b> {selectedUser.gender}</div><div className="mt-4 pt-2 border-t"><b>Payment:</b> {selectedUser.paymentStatus || "None"}</div>{selectedUser.utr && <div><b>UTR:</b> {selectedUser.utr}</div>}</div></div></div>)}
+            </div>
+        );
+    };
+
+    // --- 3.3 USER DASHBOARD & GAME ---
+    const UserDashboard = ({ user }) => {
+        const [view, setView] = useState('home'); 
+        const [userData, setUserData] = useState(null);
+        
+        // Data
+        const [exams, setExams] = useState([]);
+        const [folders, setFolders] = useState([]);
+        const [files, setFiles] = useState([]);
+        
+        // Selections
+        const [selectedExam, setSelectedExam] = useState(""); 
+        const [selectedFolder, setSelectedFolder] = useState(""); // Folder ID or "all"
+        const [selectedFile, setSelectedFile] = useState("random"); // File ID or "random"
+        
+        // Config
+        const [gameTimer, setGameTimer] = useState("10"); 
+        const [negMarking, setNegMarking] = useState(false);
+        const [negValue, setNegValue] = useState(0.5);
+
+        const [playerName, setPlayerName] = useState("");
+        const [joinCode, setJoinCode] = useState("");
+        const [utr, setUtr] = useState("");
+        
+        // PAYMENT & PROMO
+        const [basePrice, setBasePrice] = useState(999); 
+        const [paymentPrice, setPaymentPrice] = useState(999);
+        const [promoInput, setPromoInput] = useState("");
+        const [discountApplied, setDiscountApplied] = useState(false);
+        
+        // MODAL TOGGLES
+        const [showAbout, setShowAbout] = useState(false);
+        const [showContact, setShowContact] = useState(false);
+        const [contactLinks, setContactLinks] = useState({});
+        
+        // Menus
+        const [menuState, setMenuState] = useState({ exam: false, folder: false, file: false });
+
+        // Game State
+        const [gameCode, setGameCode] = useState("");
+        const [isHost, setIsHost] = useState(false);
+        const [questions, setQuestions] = useState([]);
+        const [qIndex, setQIndex] = useState(0);
+        const [answers, setAnswers] = useState({});
+        const [timeLeft, setTimeLeft] = useState(0);
+        const [players, setPlayers] = useState([]);
+        const [scores, setScores] = useState([]);
+        const [submitted, setSubmitted] = useState(false);
+        const [gameSubject, setGameSubject] = useState("");
+        const [gameNeg, setGameNeg] = useState(0); // For Results
+
+        const timerRef = useRef(null);
+        const hbRef = useRef(null);
+
+        useEffect(() => {
+            db.ref(`users/${user.uid}`).on('value', s => { setUserData(s.val()); if(s.val()?.name) setPlayerName(s.val().name); });
+            db.ref('exams').on('value', s => setExams(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            db.ref('folders').on('value', s => setFolders(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            db.ref('files').on('value', s => setFiles(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            db.ref('settings').on('value', s => { 
+                if(s.val()) { 
+                    const price = parseInt(s.val().proPrice)||999;
+                    setBasePrice(price); 
+                    setPaymentPrice(price); 
+                    setContactLinks(s.val().contact || {});
+                } 
+            });
+        }, []);
+        
+        const toggleNeg = () => {
+            const newVal = !negMarking;
+            setNegMarking(newVal);
+            // FIXED: Removed popup alert
+        };
+        
+        const getPlayerStatus = (lastSeen) => {
+            if (!lastSeen) return { color: 'bg-gray-400', text: 'Offline' };
+            const diff = Date.now() - lastSeen;
+            if (diff < 15000) return { color: 'bg-green-500 online-dot', text: 'Online' };
+            const sec = Math.floor(diff / 1000);
+            return { color: 'bg-gray-400', text: `${sec < 60 ? sec+'s' : Math.floor(sec/60)+'m'} ago` };
+        };
+        
+        // RESTORED: PROMO CODE LOGIC
+        const applyPromo = async () => {
+            if(!promoInput) return;
+            const snap = await db.ref(`promos/${promoInput}`).once('value');
+            if(snap.exists()) {
+                const disc = parseFloat(snap.val().discount);
+                const newPrice = basePrice - (basePrice * (disc/100));
+                setPaymentPrice(Math.round(newPrice));
+                setDiscountApplied(true);
+                alert(`Code Applied! ${disc}% Discount.`);
+            } else { alert("Invalid Code"); }
+        };
+        
+        const handleSubmitRequest = () => {
+            db.ref(`users/${user.uid}`).update({ paymentStatus: 'pending', utr, amountPaid: paymentPrice });
+            alert("Request Sent! Admin has been notified.");
+            setView('home');
+        };
+
+        const createGame = async () => {
+            if(!playerName) return alert("Enter Name");
+            if(!selectedExam || !selectedFolder) return alert("Select Exam and Subject");
+
+            const isPro = userData.type === 'PRO';
+            let finalQuestions = [];
+            let targetFiles = [];
+            
+            if (selectedFolder === 'all') {
+                targetFiles = files.filter(f => f.examId === selectedExam);
+            } else {
+                const folderFiles = files.filter(f => f.folderId === selectedFolder);
+                if (selectedFile === 'random') targetFiles = folderFiles;
+                else targetFiles = folderFiles.filter(f => f.id === selectedFile);
+            }
+            
+            if (targetFiles.length === 0) return alert("No questions available in this selection.");
+            if (targetFiles.some(f => f.isPro) && !isPro) return alert("🔒 Selection contains PRO content. Upgrade required.");
+
+            // Fetch Questions
+            let allQs = [];
+            for (const f of targetFiles) {
+                const snap = await db.ref(`file_questions/${f.id}`).once('value');
+                if(snap.val()) allQs = [...allQs, ...snap.val()];
+            }
+
+            if(allQs.length === 0) return alert("No questions found.");
+
+            // FIX 4: RESTORED 80/20 LOGIC
+            if (!isPro) {
+                finalQuestions = allQs.sort(() => 0.5 - Math.random()).slice(0, 10);
+            } else {
+                // Pro Logic: 20% mistakes, 80% fresh
+                const currentFolderObj = folders.find(f => f.id === selectedFolder);
+                const folderName = currentFolderObj ? currentFolderObj.name : "General";
+                
+                const mistakesSnap = await db.ref(`users/${user.uid}/mistakes/${folderName}`).once('value');
+                let oldMistakes = mistakesSnap.val() ? Object.values(mistakesSnap.val()) : [];
+                const totalLimit = 20;
+                const mistakeLimit = Math.floor(totalLimit * 0.2); // 4 questions
+                
+                if (oldMistakes.length > 0) {
+                    const pickedMistakes = oldMistakes.sort(() => 0.5 - Math.random()).slice(0, mistakeLimit);
+                    finalQuestions = [...pickedMistakes];
+                }
+                const remainingCount = totalLimit - finalQuestions.length;
+                if (remainingCount > 0) {
+                     let shuffledFresh = allQs.sort(() => 0.5 - Math.random());
+                     // Deduplicate based on question text
+                     const existingQs = new Set(finalQuestions.map(q => q.Question || q.question));
+                     const filteredFresh = shuffledFresh.filter(q => !existingQs.has(q.Question || q.question));
+                     finalQuestions = [...finalQuestions, ...filteredFresh.slice(0, remainingCount)];
+                }
+            }
+
+            const gameQs = finalQuestions.map((q, i) => ({
+                id: i,
+                q: q.Question || q.question,
+                opts: [q["Option A"], q["Option B"], q["Option C"], q["Option D"]].filter(Boolean),
+                // UPDATED: Aggressive normalization for existing data
+                correct: (() => {
+                    const raw = q["Correct Option"] || q["Answer"] || "";
+                    if (!raw) return "";
+                    // If raw is "Option A", try to find text.
+                    const lower = String(raw).toLowerCase().trim();
+                    if (lower.includes("option") || lower.length <= 3) {
+                        if (lower.includes("a")) return q["Option A"] || raw;
+                        if (lower.includes("b")) return q["Option B"] || raw;
+                        if (lower.includes("c")) return q["Option C"] || raw;
+                        if (lower.includes("d")) return q["Option D"] || raw;
+                    }
+                    return raw;
+                })(),
+                info: q.info || ""
+            }));
+
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            const timeSec = parseInt(gameTimer) * 60;
+            const subName = selectedFolder === 'all' ? 'FULL MOCK' : folders.find(f=>f.id===selectedFolder)?.name;
+
+            await db.ref(`games/${code}`).set({
+                status: 'waiting',
+                timer: timeSec,
+                subject: subName,
+                questions: gameQs,
+                neg: negMarking ? parseFloat(negValue) : 0,
+                players: { [user.uid]: { name: playerName, host: true, score: 0, lastSeen: Date.now() } }
+            });
+
+            setGameCode(code);
+            setIsHost(true);
+            setQuestions(gameQs);
+            setGameSubject(subName);
+            setTimeLeft(timeSec);
+            setGameNeg(negMarking ? parseFloat(negValue) : 0);
+            setView('lobby');
+        };
+
+        const joinGame = async () => {
+            if(!joinCode || !playerName) return alert("Enter Code & Name");
+            const snap = await db.ref(`games/${joinCode}`).once('value');
+            if(!snap.exists()) return alert("Invalid Code");
+            await db.ref(`games/${joinCode}/players/${user.uid}`).set({ name: playerName, host: false, score: 0, lastSeen: Date.now() });
+            setGameCode(joinCode);
+            setIsHost(false);
+            setView('lobby');
+        };
+
+        const handleSubmit = () => {
+            if (submitted) return;
+            let correct = 0;
+            let wrong = 0;
+            let mistakes = [];
+            questions.forEach((q, i) => { 
+                const u = String(answers[i] || "").trim().toLowerCase();
+                const c = String(q.correct || "").trim().toLowerCase();
+                let match = false;
+                if(u) {
+                     // Robust text matching
+                     if (u === c) match = true;
+                     else if (c.includes(u) || u.includes(c)) match = true;
+                     
+                     if (match) correct++; else {
+                         wrong++;
+                         mistakes.push({ Question: q.q, "Option A": q.opts[0], "Option B": q.opts[1], "Option C": q.opts[2], "Option D": q.opts[3], "Correct Option": q.correct, info: q.info });
+                     }
+                }
+            });
+            
+            // SCORE CALCULATION WITH NEGATIVE MARKING
+            const finalScore = correct - (wrong * gameNeg);
+            
+            // SAVE MISTAKES (If PRO and not a Full Mock)
+            if (mistakes.length > 0 && userData.type === 'PRO' && selectedFolder !== 'all') { 
+                const folderName = folders.find(f => f.id === selectedFolder)?.name || "General";
+                mistakes.forEach(m => { db.ref(`users/${user.uid}/mistakes/${folderName}`).push(m); });
+            }
+            
+            db.ref(`games/${gameCode}/players/${user.uid}`).update({ score: finalScore.toFixed(2) }); 
+            setSubmitted(true);
+            setView('results');
+        };
+
+        // Standard Game Effects
+        useEffect(() => {
+            if (view === 'lobby' || view === 'game') {
+                const gr = db.ref(`games/${gameCode}`);
+                // Heartbeat for online status
+                const hb = setInterval(() => gr.child(`players/${user.uid}`).update({ lastSeen: Date.now() }), 5000);
+                gr.child('players').on('value', s => setPlayers(Object.values(s.val()||{})));
+                gr.child('status').on('value', s => { if (s.val() === 'started' && view === 'lobby') setView('game'); });
+                if (!isHost) {
+                    gr.child('questions').once('value', s => setQuestions(s.val()||[]));
+                    gr.child('timer').once('value', s => setTimeLeft(s.val()));
+                    gr.child('subject').on('value', s => setGameSubject(s.val()));
+                    gr.child('neg').once('value', s => setGameNeg(s.val() || 0));
+                }
+                // Leaderboard sorting
+                gr.child('players').on('value', s => { if(s.val()) setScores(Object.values(s.val()).filter(p => p.score !== undefined).sort((a,b) => parseFloat(b.score) - parseFloat(a.score))); });
+                return () => { clearInterval(hb); gr.off(); };
+            }
+        }, [view, gameCode]);
+
+        useEffect(() => {
+            if (view === 'game' && timeLeft > 0) { const t = setInterval(()=>setTimeLeft(p=>p-1),1000); return ()=>clearInterval(t); }
+            if (view === 'game' && timeLeft === 0 && !submitted) handleSubmit();
+        }, [view, timeLeft]);
+
+        // RESTORED: PAYMENT VIEW FROM V1.4
+        if (view === 'payment') return (
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="glass-card w-full max-w-sm p-8 text-center animate-fade-in relative">
+                    <button onClick={()=>setView('home')} className="absolute top-4 left-4 text-gray-400 font-bold flex items-center gap-1 text-sm"><Icons.Back className="w-4 h-4"/> Back</button>
+                    <h2 className="text-xl font-bold mb-4 mt-4">Upgrade to Pro</h2>
+                    <div className="bg-gray-100 p-4 rounded mb-4">
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${UPI_ID}&pn=QuizMasterPro&am=${paymentPrice}&cu=INR`} className="mx-auto mb-2 border border-gray-300 rounded" alt="QR"/>
+                        <p className="font-bold text-lg">₹{paymentPrice}</p>
+                        <a href={`upi://pay?pa=${UPI_ID}&pn=QuizMasterPro&am=${paymentPrice}&cu=INR`} className="inline-block bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 mt-2">Open GPay/UPI App</a>
+                    </div>
+                    <div className="flex gap-2 mb-4"><input className="border p-2 rounded text-sm flex-1" placeholder="Promo Code" value={promoInput} onChange={e=>setPromoInput(e.target.value)} disabled={discountApplied} /><button onClick={applyPromo} disabled={discountApplied} className="bg-purple-600 text-white px-3 rounded text-sm font-bold">Verify</button></div>
+                    <input className="w-full p-2 border rounded mb-4 text-sm" placeholder="Enter Transaction ID (UTR)" value={utr} onChange={e=>setUtr(e.target.value)}/>
+                    <button onClick={handleSubmitRequest} className="w-full btn-primary py-2 rounded font-bold">Submit Request</button>
+                    <Copyright />
+                </div>
+            </div>
+        );
+
+        // --- VIEWS ---
+        if (view === 'home') {
+            const currentExamFolders = folders.filter(f => f.examId === selectedExam);
+            const currentFolderFiles = files.filter(f => f.folderId === selectedFolder);
+            
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="glass-card w-full max-w-sm p-8 text-center animate-fade-in relative">
+                        <button onClick={()=>auth.signOut()} className="absolute top-4 right-4 text-gray-400"><Icons.Logout className="w-5 h-5"/></button>
+                        <div className="absolute top-4 left-4 flex gap-2">
+                             {/* FIXED: INFO BUTTONS CALLING MODALS */}
+                             <button onClick={()=>setShowAbout(true)} className="text-gray-400 hover:text-purple-600 flex flex-col items-center"><Icons.Info className="w-5 h-5" /><span className="text-[8px] font-bold">ABOUT</span></button>
+                             <button onClick={()=>setShowContact(true)} className="text-gray-400 hover:text-blue-600 flex flex-col items-center"><Icons.Phone className="w-5 h-5" /><span className="text-[8px] font-bold">CONTACT</span></button>
+                        </div>
+                        {userData?.type !== 'PRO' && <button onClick={()=>setView('payment')} className="absolute top-4 left-1/2 -translate-x-1/2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">UPGRADE</button>}
+                        
+                        <Icons.Trophy className="w-12 h-12 text-yellow-500 mx-auto mb-2 mt-4" />
+                        <h1 className="text-xl font-bold mb-6">Quiz Master Pro</h1>
+                        <div className="flex items-center justify-center gap-2 mb-4"><input className="w-full p-3 border rounded-lg" placeholder="Your Name" value={playerName} onChange={e=>setPlayerName(e.target.value)}/>{userData?.type === 'PRO' && <span className="text-xs bg-yellow-400 text-white px-2 py-1 rounded font-bold">PRO</span>}</div>
+
+                        <div className="text-left mb-2 text-xs font-bold text-gray-500">New Game Setup</div>
+                        
+                        {/* 1. EXAM */}
+                        <div className="mb-2 relative">
+                            <button onClick={()=>setMenuState({...menuState, exam: !menuState.exam})} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center">
+                                <span className="truncate">{exams.find(e=>e.id===selectedExam)?.name || "Select Exam"}</span> <Icons.ChevronDown className="w-4 h-4 text-gray-400"/>
+                            </button>
+                            {menuState.exam && (
+                                <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto">
+                                    {exams.map(e => <button key={e.id} onClick={()=>{setSelectedExam(e.id); setSelectedFolder(""); setSelectedFile("random"); setMenuState({...menuState, exam: false});}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b font-bold text-gray-700">{e.name}</button>)}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 2. FOLDER (SUBJECT) */}
+                        <div className="mb-2 relative">
+                            <button disabled={!selectedExam} onClick={()=>setMenuState({...menuState, folder: !menuState.folder})} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center disabled:opacity-50">
+                                <span className="truncate">{selectedFolder === 'all' ? "📚 Full Mock (All Subjects)" : folders.find(f=>f.id===selectedFolder)?.name || "Select Subject"}</span> <Icons.ChevronDown className="w-4 h-4 text-gray-400"/>
+                            </button>
+                            {menuState.folder && selectedExam && (
+                                <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto">
+                                    <button onClick={()=>{setSelectedFolder("all"); setMenuState({...menuState, folder: false});}} className="w-full text-left px-3 py-2 text-sm bg-purple-50 text-purple-700 font-bold border-b">📚 ALL SUBJECTS (Full Mock)</button>
+                                    {currentExamFolders.map(f => <button key={f.id} onClick={()=>{setSelectedFolder(f.id); setSelectedFile("random"); setMenuState({...menuState, folder: false});}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b text-gray-700 font-medium">{f.name}</button>)}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 3. FILE (TOPIC) - Hidden if Mock */}
+                        {selectedFolder !== 'all' && (
+                            <div className="mb-2 relative">
+                                <button disabled={!selectedFolder} onClick={()=>setMenuState({...menuState, file: !menuState.file})} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center disabled:opacity-50">
+                                    <span className="truncate">{selectedFile === 'random' ? "🔀 Random (Mix Topics)" : files.find(f=>f.id===selectedFile)?.name}</span> <Icons.ChevronDown className="w-4 h-4 text-gray-400"/>
+                                </button>
+                                {menuState.file && selectedFolder && (
+                                    <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto">
+                                        <button onClick={()=>{setSelectedFile("random"); setMenuState({...menuState, file: false});}} className="w-full text-left px-3 py-2 text-sm bg-gray-50 font-bold border-b">🔀 Random (Mix Topics)</button>
+                                        {currentFolderFiles.map(f => <button key={f.id} onClick={()=>{setSelectedFile(f.id); setMenuState({...menuState, file: false});}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b text-gray-600 truncate">{f.name}</button>)}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* TIMER & NEG MARKING */}
+                        <div className="flex items-center gap-2 mb-4 mt-4 bg-gray-50 p-2 rounded-lg border">
+                             <div className="flex-1 text-left">
+                                 <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Time (Mins)</label>
+                                 <input type="number" className="w-full p-1 border rounded text-center font-bold" value={gameTimer} onChange={e=>setGameTimer(e.target.value)}/>
+                             </div>
+                             <div className="w-px h-8 bg-gray-300"></div>
+                             <div className="flex-1 text-center">
+                                 <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Negative Marking</label>
+                                 <div className="flex items-center justify-center gap-2">
+                                     <div className="relative inline-block w-8 h-4 align-middle select-none transition duration-200 ease-in">
+                                         <input type="checkbox" name="toggle" id="toggle" className="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer" checked={negMarking} onChange={toggleNeg}/>
+                                         <label htmlFor="toggle" className={`toggle-label block overflow-hidden h-4 rounded-full cursor-pointer ${negMarking ? 'bg-green-400' : 'bg-gray-300'}`}></label>
+                                     </div>
+                                     {negMarking && (
+                                         <select className="text-xs border rounded p-0.5" value={negValue} onChange={e=>setNegValue(e.target.value)}>
+                                             <option value="0.25">-0.25</option>
+                                             <option value="0.33">-0.33</option>
+                                             <option value="0.5">-0.5</option>
+                                         </select>
+                                     )}
+                                 </div>
+                             </div>
+                        </div>
+
+                        <button onClick={createGame} className="w-full btn-primary py-3 rounded-lg font-bold mb-4 shadow-lg">Create Room</button>
+                        <div className="flex items-center gap-2 mb-4"><hr className="flex-1"/><span className="text-xs text-gray-400">OR</span><hr className="flex-1"/></div>
+                        <input type="number" className="w-full p-3 border rounded-lg mb-2 text-center tracking-widest" placeholder="Enter Code" value={joinCode} onChange={e=>setJoinCode(e.target.value)}/>
+                        <button onClick={joinGame} className="w-full bg-gray-800 text-white py-3 rounded-lg font-bold shadow-lg">Join Room</button>
+                        <Copyright />
+                    </div>
+                    {/* FIXED: MODALS AT ROOT LEVEL OF HOME VIEW */}
+                    {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+                    {showContact && <ContactModal links={contactLinks} onClose={() => setShowContact(false)} />}
+                </div>
+            );
+        }
+
+        if (view === 'lobby') return (
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="glass-card w-full max-w-lg p-8 text-center relative">
+                    <button onClick={()=>setView('home')} className="absolute top-4 left-4 text-gray-400 font-bold flex items-center gap-1 text-sm"><Icons.Back className="w-4 h-4"/> Back</button>
+                    <div className="mt-8 md:mt-0"><h2 className="text-2xl font-bold mb-1">Lobby <span className="text-purple-600 font-mono">{gameCode}</span></h2>
+                    <p className="text-gray-500 text-sm mb-6 flex justify-center items-center gap-2">
+                        {gameNeg > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold">-{gameNeg} Negative Marking</span>}
+                        <span>Waiting for players...</span>
+                    </p></div>
+                    {/* FIX 5: RESTORED ONLINE STATUS INDICATOR IN LOBBY */}
+                    <div className="flex flex-wrap gap-2 justify-center mb-8">{players.map((p,i) => { const st = getPlayerStatus(p.lastSeen); return <div key={i} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${st.color}`}></div> {p.name}</div>; })}</div>
+                    {isHost ? <button onClick={()=>db.ref(`games/${gameCode}`).update({status: 'started'})} className="btn-primary px-8 py-3 rounded-lg font-bold">Start Game</button> : <div className="animate-pulse text-purple-600 font-bold">Get Ready!</div>}
+                </div>
+            </div>
+        );
+
+        if (view === 'game') return (
+            <div className="min-h-screen flex flex-col p-4 max-w-3xl mx-auto">
+                {/* FIX 5: RESTORED ONLINE STATUS INDICATOR IN GAME */}
+                <div className="glass-card p-2 mb-2 flex gap-2 overflow-x-auto custom-scroll">{players.map((p,i) => { const st = getPlayerStatus(p.lastSeen); return <div key={i} className="flex-shrink-0 px-2 py-1 bg-gray-50 rounded border flex items-center gap-1.5"><div className={`w-2 h-2 rounded-full ${st.color}`}></div><span className="text-xs font-bold text-gray-700">{p.name}</span>{st.text && <span className="text-[9px] text-gray-400">{st.text}</span>}</div>; })}</div>
+                <div className="glass-card p-3 md:p-4 mb-4 sticky top-2 z-10">
+                    <div className="flex justify-between items-center">
+                         <div className="flex items-center gap-2">
+                             <div className="font-bold truncate max-w-[120px]">{playerName}</div>
+                             {gameNeg > 0 && <span className="text-[10px] bg-red-100 text-red-600 border border-red-200 px-1 rounded font-bold">-{gameNeg}</span>}
+                         </div>
+                         <div className="flex items-center gap-3">
+                             <div className={`text-xl font-mono font-bold flex items-center gap-1 ${timeLeft<=10?'text-red-500 timer-blink':'text-green-600'}`}><Icons.Clock className="w-4 h-4"/> {Math.floor(timeLeft/60)}:{(timeLeft%60).toString().padStart(2,'0')}</div>
+                             <button onClick={()=>setView('home')} className="bg-red-100 text-red-500 px-3 py-1 rounded text-xs font-bold">Quit</button>
+                         </div>
+                    </div>
+                    <div className="text-xs font-bold text-center text-purple-600 uppercase tracking-widest mt-1 truncate">{gameSubject}</div>
+                </div>
+                <div className="glass-card p-6 flex-1">
+                    <div className="flex justify-between items-start mb-4"><span className="text-xs font-bold text-gray-400">Question {qIndex + 1} of {questions.length}</span>{questions[qIndex]?.info && <span className="asked-in-tag">{questions[qIndex].info}</span>}</div>
+                    <h2 className="text-lg font-bold text-gray-800 mb-6">{questions?.[qIndex]?.q}</h2>
+                    <div className="space-y-3">{questions?.[qIndex]?.opts.map((opt, i) => (<button key={i} onClick={() => setAnswers({...answers, [qIndex]: opt})} className={`w-full text-left p-4 rounded-lg border transition ${answers[qIndex] === opt ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'hover:bg-gray-50'}`}>{opt}</button>))}</div>
+                    <div className="flex justify-between mt-8 pt-4 border-t">
+                        <button disabled={qIndex===0} onClick={()=>setQIndex(qIndex-1)} className="px-4 py-2 bg-gray-100 rounded disabled:opacity-50">Prev</button>
+                        {qIndex < questions.length - 1 ? ( <button onClick={()=>setQIndex(qIndex+1)} className="px-4 py-2 bg-gray-800 text-white rounded">Next</button> ) : ( <button onClick={handleSubmit} className="px-4 py-2 btn-primary rounded">Finish</button> )}
+                    </div>
+                </div>
+            </div>
+        );
+
+        if (view === 'results') {
+            // FIX 3: RESTORED V1.4 RESULTS GRID & BADGES
+            let myCorrect = 0;
+            questions.forEach((q, i) => { 
+                const u = String(answers[i] || "").trim().toLowerCase();
+                const c = String(q.correct || "").trim().toLowerCase();
+                let match = false;
+                if(u && c) {
+                     if (u === c) match = true;
+                     else if (c.includes(u) || u.includes(c)) match = true;
+                }
+                if (match) myCorrect++;
+            });
+            const attempted = Object.keys(answers).length;
+            const wrong = attempted - myCorrect;
+            
+            return (
+             <div className="min-h-screen p-4 flex justify-center">
+                    <div className="glass-card w-full max-w-2xl p-6 h-fit">
+                        <div className="text-center mb-6"><Icons.Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-2"/><h2 className="text-2xl font-bold">Results</h2></div>
+                        
+                        {/* RESTORED STATS GRID */}
+                        <div className="grid grid-cols-4 gap-2 mb-6 text-center">
+                            <div className="bg-gray-50 p-2 rounded border"><div className="text-xs text-gray-500">Total</div><div className="font-bold">{questions.length}</div></div>
+                            <div className="bg-blue-50 p-2 rounded border border-blue-100"><div className="text-xs text-blue-500">Attempted</div><div className="font-bold">{attempted}</div></div>
+                            <div className="bg-green-50 p-2 rounded border border-green-100"><div className="text-xs text-green-500">Correct</div><div className="font-bold">{myCorrect}</div></div>
+                            <div className="bg-red-50 p-2 rounded border border-red-100"><div className="text-xs text-red-500">Wrong</div><div className="font-bold">{wrong}</div></div>
+                        </div>
+
+                        <div className="bg-gray-100 rounded-lg p-4 mb-6">
+                            <h3 className="font-bold text-center text-lg mb-4 text-purple-700">Leaderboard</h3>
+                            {/* RESTORED BADGES */}
+                            {scores.map((s,i)=><div key={i} className="flex justify-between p-2 border-b last:border-0"><div className="flex items-center gap-2"><span className="font-bold w-6">{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</span><span>{s.name}</span></div><span className="font-bold">{s.score} pts</span></div>)}
+                        </div>
+                        
+                         <div className="space-y-4"><h3 className="font-bold text-gray-500 text-xs uppercase">Mistakes</h3>{questions.map((q, i) => { 
+                             const u = answers[i]; 
+                             const c = q.correct;
+                             let match = false;
+                             if(u && c) { if (u.toLowerCase() === String(c).toLowerCase() || (String(c).toLowerCase().includes(u.toLowerCase()))) match = true; }
+                             if (match) return null; 
+                             return ( <div key={i} className="bg-red-50 p-4 rounded-lg border border-red-100 text-sm"><div className="font-bold text-gray-800 mb-2">{q.q}</div><div className="grid grid-cols-2 gap-2"><div className="text-red-600 font-bold">You: <span className="font-normal">{u||"Skipped"}</span></div><div className="text-green-600 font-bold">Correct: <span className="font-normal">{c}</span></div></div></div> ); })}</div>
+                        <button onClick={()=>window.location.reload()} className="w-full btn-primary py-3 rounded-lg font-bold mt-6">Home</button>
+                    </div>
+             </div>
+            );
+        }
+    };
+
+    // --- 4. MAIN APP CONTROLLER ---
+    const App = () => {
+        const [user, setUser] = useState(null);
+        const [screen, setScreen] = useState('landing');
+        const [loading, setLoading] = useState(true);
+        // UPDATED: RETAIN V1.4 ABOUT AND CONTACT MODALS
+        const [showAbout, setShowAbout] = useState(false);
+        const [showContact, setShowContact] = useState(false);
+        const [contactLinks, setContactLinks] = useState({});
+
+        useEffect(() => { 
+            auth.onAuthStateChanged(u => { if(u){setUser(u); setScreen(u.email===ADMIN_EMAIL||u.email===ADMIN_EMAIL_HARDCODED?'admin':'user');}else{setUser(null);setScreen('landing');} setLoading(false); });
+            // Load contact links for global usage if needed
+            db.ref('settings/contact').on('value', s => { if(s.val()) setContactLinks(s.val()); });
+        }, []);
+
+        if (loading) return <div className="flex h-screen items-center justify-center font-bold text-purple-600 text-xl animate-pulse">Loading Quiz Master...</div>;
+        if (screen === 'landing') return <LandingPage setScreen={setScreen} />;
+        if (screen === 'login') return <AuthForm type="login" setScreen={setScreen} />;
+        if (screen === 'signup') return <AuthForm type="signup" setScreen={setScreen} />;
+        if (screen === 'admin') return <AdminDashboard user={user} />;
+        if (screen === 'user') return <UserDashboard user={user} />;
+        return null;
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+</script>
+</body>
+</html>
