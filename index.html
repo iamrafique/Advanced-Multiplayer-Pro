@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Master Pro - V1.6.9 (Smart CSV)</title>
+    <title>Quiz Master Pro - V1.9.0 (Patched Stable)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -12,8 +12,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -27,8 +25,6 @@
         .glass-card { background: white; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         
         .btn-primary { background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%); color: white; }
-        .tab-active { color: #6366f1; border-bottom: 2px solid #6366f1; font-weight: 600; }
-        .tab-inactive { color: #64748b; font-weight: 500; }
         
         .timer-blink { animation: blink-red 1s infinite; }
         @keyframes blink-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
@@ -36,19 +32,23 @@
         @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } }
         .online-dot { animation: pulse-green 2s infinite; }
         
-        .asked-in-tag { font-size: 10px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; display: inline-block; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .asked-in-tag { font-size: 10px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; display: inline-block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        /* Modal Overlay - FIXED Z-INDEX */
+        /* Modal Overlay */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
         
         /* Custom Scroll */
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
         /* Toggle Switch */
         .toggle-checkbox:checked { right: 0; border-color: #68D391; }
         .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+
+        /* Graph Animations */
+        @keyframes grow-bar { from { width: 0; } }
+        .animate-bar { animation: grow-bar 1s ease-out forwards; }
     </style>
 </head>
 <body class="bg-main-gradient text-gray-800">
@@ -69,8 +69,9 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
-    const ADMIN_EMAIL = "admin@rafique.com"; 
-    const ADMIN_EMAIL_HARDCODED = "admin@admin.com"; 
+    
+    // ADMIN EMAILS
+    const ADMIN_EMAILS = ["admin@rafique.com", "admin@admin.com"];
     const UPI_ID = "iamrafique-1@okhdfcbank";
 
     // --- 2. ICONS ---
@@ -83,7 +84,6 @@
         Logout: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>,
         X: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
         Clock: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-        XCircle: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
         Back: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>,
         Menu: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
         Download: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
@@ -107,7 +107,8 @@
         Copy: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
         Folder: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
         ArrowRight: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
-        Plus: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Plus: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+        Grid: (p)=><svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
     };
 
     const Copyright = () => (
@@ -126,7 +127,7 @@
                 <div className="text-center mb-6">
                     <Icons.Trophy className="w-12 h-12 text-purple-600 mx-auto mb-2" />
                     <h2 className="text-2xl font-bold text-gray-800">About Quiz Master Pro</h2>
-                    <div className="text-sm font-bold text-purple-600 uppercase tracking-widest mt-1">Version 1.6.9 (Smart CSV)</div>
+                    <div className="text-sm font-bold text-purple-600 uppercase tracking-widest mt-1">Version 1.9.0 (Patched Stable)</div>
                 </div>
                 <div className="space-y-6">
                     <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
@@ -138,12 +139,8 @@
                         <ul className="space-y-2 text-sm text-gray-600">
                             <li className="flex gap-2"><span className="font-bold min-w-[80px]">Frontend:</span> React.js 18, Tailwind CSS.</li>
                             <li className="flex gap-2"><span className="font-bold min-w-[80px]">Backend:</span> Google Firebase (Auth & Realtime DB).</li>
-                            <li className="flex gap-2"><span className="font-bold min-w-[80px]">Logic:</span> Multi-Tier Exam Selection & Spaced Repetition.</li>
+                            <li className="flex gap-2"><span className="font-bold min-w-[80px]">Logic:</span> Server-Side Timer Sync & Security.</li>
                         </ul>
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-gray-800 mb-3 border-b pb-2">🔒 Privacy & Data</h3>
-                        <div className="text-sm text-gray-600 space-y-2"><p>We securely store: Identity (Name, Phone, etc.), Performance Stats, and Membership status.</p></div>
                     </div>
                 </div>
                 <div className="mt-8 text-center"><button onClick={onClose} className="btn-primary px-8 py-2 rounded-lg font-bold">Close</button></div>
@@ -151,26 +148,33 @@
         </div>
     );
 
-    const ContactModal = ({ onClose, links }) => (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="glass-card max-w-sm w-full mx-4 p-6 relative animate-fade-in" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><Icons.X className="w-6 h-6"/></button>
-                <div className="text-center mb-6">
-                    <Icons.Phone className="w-12 h-12 text-blue-600 mx-auto mb-2" />
-                    <h2 className="text-2xl font-bold text-gray-800">Contact Us</h2>
-                    <p className="text-gray-500 text-sm">Get in touch via</p>
-                </div>
-                <div className="space-y-3">
-                    {links.email && <a href={`mailto:${links.email}`} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"><Icons.Mail className="w-5 h-5 text-gray-600"/><span className="font-medium text-sm text-gray-700">{links.email}</span></a>}
-                    {links.phone && <a href={`tel:${links.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"><Icons.Phone className="w-5 h-5 text-gray-600"/><span className="font-medium text-sm text-gray-700">{links.phone}</span></a>}
-                    {links.whatsapp && <a href={links.whatsapp} target="_blank" className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition"><div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">W</div><span className="font-medium text-sm text-green-700">WhatsApp</span></a>}
-                    {links.telegram && <a href={links.telegram} target="_blank" className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"><Icons.Send className="w-5 h-5 text-blue-500"/><span className="font-medium text-sm text-blue-700">Telegram</span></a>}
-                    {links.instagram && <a href={links.instagram} target="_blank" className="flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg border border-pink-200 transition"><Icons.Instagram className="w-5 h-5 text-pink-600"/><span className="font-medium text-sm text-pink-700">Instagram</span></a>}
-                    {links.facebook && <a href={links.facebook} target="_blank" className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"><Icons.Facebook className="w-5 h-5 text-blue-800"/><span className="font-medium text-sm text-blue-900">Facebook</span></a>}
+    const ContactModal = ({ onClose, links }) => {
+        const getSafeLink = (url) => {
+            if (!url) return "#";
+            return url.startsWith("http") ? url : `https://${url}`;
+        };
+
+        return (
+            <div className="modal-overlay" onClick={onClose}>
+                <div className="glass-card max-w-sm w-full mx-4 p-6 relative animate-fade-in" onClick={e => e.stopPropagation()}>
+                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><Icons.X className="w-6 h-6"/></button>
+                    <div className="text-center mb-6">
+                        <Icons.Phone className="w-12 h-12 text-blue-600 mx-auto mb-2" />
+                        <h2 className="text-2xl font-bold text-gray-800">Contact Us</h2>
+                        <p className="text-gray-500 text-sm">Get in touch via</p>
+                    </div>
+                    <div className="space-y-3">
+                        {links.email && <a href={`mailto:${links.email}`} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"><Icons.Mail className="w-5 h-5 text-gray-600"/><span className="font-medium text-sm text-gray-700">{links.email}</span></a>}
+                        {links.phone && <a href={`tel:${links.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border transition"><Icons.Phone className="w-5 h-5 text-gray-600"/><span className="font-medium text-sm text-gray-700">{links.phone}</span></a>}
+                        {links.whatsapp && <a href={getSafeLink(links.whatsapp)} target="_blank" className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition"><div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">W</div><span className="font-medium text-sm text-green-700">WhatsApp</span></a>}
+                        {links.telegram && <a href={getSafeLink(links.telegram)} target="_blank" className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"><Icons.Send className="w-5 h-5 text-blue-500"/><span className="font-medium text-sm text-blue-700">Telegram</span></a>}
+                        {links.instagram && <a href={getSafeLink(links.instagram)} target="_blank" className="flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg border border-pink-200 transition"><Icons.Instagram className="w-5 h-5 text-pink-600"/><span className="font-medium text-sm text-pink-700">Instagram</span></a>}
+                        {links.facebook && <a href={getSafeLink(links.facebook)} target="_blank" className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"><Icons.Facebook className="w-5 h-5 text-blue-800"/><span className="font-medium text-sm text-blue-900">Facebook</span></a>}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     // 3.1 AUTH & LANDING
     const LandingPage = ({ setScreen }) => {
@@ -270,7 +274,7 @@
         
         const [settings, setSettings] = useState({ contact: {} });
         
-        // Navigation State (Hierarchy)
+        // Navigation State
         const [currentExam, setCurrentExam] = useState(null); // Level 1
         const [currentFolder, setCurrentFolder] = useState(null); // Level 2
         
@@ -279,85 +283,199 @@
         const [uploading, setUploading] = useState(false);
         const [actionModal, setActionModal] = useState(null); // For Move/Copy
         
+        // Renaming States
         const [editingExam, setEditingExam] = useState(null);
         const [editName, setEditName] = useState("");
-        const [editingFolder, setEditingFolder] = useState(null); // Rename Folder
+        const [editingFolder, setEditingFolder] = useState(null); 
+        const [editingFile, setEditingFile] = useState(null);
         
         const [proPrice, setProPrice] = useState("999");
         const [freeLimit, setFreeLimit] = useState("10");
 
         useEffect(() => {
-            db.ref('users').on('value', s => setUsers(s.val() ? Object.entries(s.val()).map(([k,v])=>({uid:k, ...v})) : []));
-            db.ref('promos').on('value', s => setPromos(s.val() ? Object.entries(s.val()).map(([k,v])=>({code:k, ...v})) : []));
-            db.ref('settings').on('value', s => {
+            const usersRef = db.ref('users').limitToLast(500);
+            usersRef.on('value', s => setUsers(s.val() ? Object.entries(s.val()).map(([k,v])=>({uid:k, ...v})) : []));
+            
+            const promosRef = db.ref('promos');
+            promosRef.on('value', s => setPromos(s.val() ? Object.entries(s.val()).map(([k,v])=>({code:k, ...v})) : []));
+            
+            const settingsRef = db.ref('settings');
+            settingsRef.on('value', s => {
                 if(s.val()) {
                     setSettings(s.val());
                     setProPrice(s.val().proPrice || "999");
                     setFreeLimit(s.val().freeLimit || "10");
                 }
             });
-            // Fetch hierarchy
-            db.ref('exams').on('value', s => setExams(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
-            db.ref('folders').on('value', s => setFolders(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
-            db.ref('files').on('value', s => setFiles(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            
+            const examsRef = db.ref('exams');
+            examsRef.on('value', s => setExams(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            
+            const foldersRef = db.ref('folders');
+            foldersRef.on('value', s => setFolders(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+            
+            const filesRef = db.ref('files');
+            filesRef.on('value', s => setFiles(s.val() ? Object.entries(s.val()).map(([k,v])=>({id:k, ...v})) : []));
+
+            return () => {
+                usersRef.off();
+                promosRef.off();
+                settingsRef.off();
+                examsRef.off();
+                foldersRef.off();
+                filesRef.off();
+            };
         }, []);
 
-        // --- SMART FEATURE: AUTO-MIGRATION OF OLD FILES ---
-        useEffect(() => {
-            if (files.length > 0 && exams.length > 0) {
-                const unorganized = files.filter(f => !f.folderId && f.examId && f.subject);
-                if (unorganized.length > 0) {
-                    console.log("Migrating", unorganized.length, "files...");
-                    unorganized.forEach(async (file) => {
-                        // Check if a folder already exists for this subject + exam
-                        const existingFolder = folders.find(fd => fd.name.toLowerCase() === file.subject.toLowerCase() && fd.examId === file.examId);
-                        let folderId = existingFolder ? existingFolder.id : null;
-                        
-                        if (!folderId) {
-                            // Create new folder
-                            const newFolderRef = db.ref('folders').push();
-                            folderId = newFolderRef.key;
-                            await newFolderRef.set({ name: file.subject, examId: file.examId });
-                        }
-                        
-                        // Move file to folder
-                        db.ref(`files/${file.id}`).update({ folderId: folderId });
-                    });
-                }
-            }
-        }, [files, folders, exams]);
+        // --- BUG FIX #1: LOCAL CACHE FOR CSV PARSER ---
+        const handleCSV = async (e) => {
+            const filesStr = e.target.files;
+            if (!filesStr || filesStr.length === 0) return;
 
-        // UPDATED: handleCSV now adds header transform
-        const handleCSV = (e) => {
-            if(!currentFolder) return alert("System Error: No Folder Selected");
-            const file = e.target.files[0];
-            if(!file) return;
             setUploading(true);
-            Papa.parse(file, {
-                header: true,
-                transformHeader: h => h.trim(), // Fix: Remove BOM/spaces from headers
-                complete: (res) => {
-                    const cleanData = res.data.filter(r => r.Question || r.question);
-                    const questions = cleanData.map(q => ({ ...q, info: q["Asked in"] || q["Exam"] || q["Shift"] || "" }));
-                    const key = db.ref('files').push().key;
-                    // Store inside FOLDER
-                    db.ref(`files/${key}`).set({ 
-                        name: file.name.replace('.csv',''), 
-                        subject: currentFolder.name, // Keep for fallback
-                        folderId: currentFolder.id,
-                        examId: currentExam.id, // Keep for easier filtering
-                        count: questions.length, 
-                        date: new Date().toISOString().split('T')[0], 
-                        isPro: false 
-                    });
-                    db.ref(`file_questions/${key}`).set(questions);
-                    setUploading(false);
-                    alert("Uploaded to " + currentFolder.name);
+            const filesArray = Array.from(filesStr);
+            let uploadedCount = 0;
+            
+            alert(`Reading ${filesArray.length} file(s)...`);
+
+            // 1. Initialize Local Cache from current state
+            const tempExams = {}; 
+            exams.forEach(ex => tempExams[ex.name.toLowerCase()] = ex.id);
+            
+            const tempFolders = {}; // Key: "examId_folderName" -> Value: folderId
+            folders.forEach(fo => tempFolders[`${fo.examId}_${fo.name.toLowerCase()}`] = fo.id);
+
+            const getVal = (row, keys) => {
+                if (!row) return "";
+                for (let k of keys) {
+                    const lowerK = k.toLowerCase();
+                    const found = Object.keys(row).find(qk => qk.toLowerCase() === lowerK);
+                    if (found && row[found] !== undefined && row[found] !== null) {
+                         const val = String(row[found]).trim();
+                         if (val) return val;
+                    }
                 }
-            });
+                return "";
+            };
+
+            const processFile = (file) => {
+                return new Promise((resolve, reject) => {
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: async (res) => {
+                            const data = res.data;
+                            if (!data || data.length === 0) { 
+                                alert(`File ${file.name} is empty or unreadable.`);
+                                resolve(); return; 
+                            }
+
+                            const hierarchy = {};
+
+                            data.forEach(row => {
+                                const qText = getVal(row, ['Question', 'q', 'Question Text', 'Questions']);
+                                if (!qText) return;
+
+                                let examName = getVal(row, ['Exam', 'Category', 'Exam Name']);
+                                if (!examName && currentExam) examName = currentExam.name;
+                                if (!examName) examName = "General Exams";
+
+                                let subjectName = getVal(row, ['Subject', 'Folder', 'Sub']);
+                                if (!subjectName && currentFolder) subjectName = currentFolder.name;
+                                if (!subjectName) subjectName = "General Knowledge";
+
+                                let topicName = getVal(row, ['Topic', 'Chapter', 'Lesson', 'File Name']);
+                                if (!topicName) topicName = file.name.replace('.csv', '');
+
+                                if (!hierarchy[examName]) hierarchy[examName] = {};
+                                if (!hierarchy[examName][subjectName]) hierarchy[examName][subjectName] = {};
+                                if (!hierarchy[examName][subjectName][topicName]) hierarchy[examName][subjectName][topicName] = [];
+                                
+                                const correctOpt = getVal(row, ['Correct Option', 'Answer', 'Ans', 'Correct', 'Right Answer', 'Solution']);
+                                if (!correctOpt) console.warn(`Row missing answer: ${qText}`);
+
+                                hierarchy[examName][subjectName][topicName].push({
+                                    Question: qText,
+                                    "Option A": getVal(row, ['Option A', 'A', 'opt a']),
+                                    "Option B": getVal(row, ['Option B', 'B', 'opt b']),
+                                    "Option C": getVal(row, ['Option C', 'C', 'opt c']),
+                                    "Option D": getVal(row, ['Option D', 'D', 'opt d']),
+                                    "Correct Option": correctOpt,
+                                    info: getVal(row, ['Asked in', 'Year', 'Info'])
+                                });
+                            });
+                            
+                            if (Object.keys(hierarchy).length === 0) {
+                                alert(`No valid questions found in ${file.name}. Check your column names.`);
+                                resolve(); return;
+                            }
+
+                            for (const examName in hierarchy) {
+                                // 2. Check Cache
+                                let examId = tempExams[examName.toLowerCase()];
+                                
+                                if (!examId) {
+                                    try {
+                                        const ref = db.ref('exams').push();
+                                        examId = ref.key;
+                                        await ref.set({ name: examName, date: Date.now() });
+                                        // 3. Update Cache immediately
+                                        tempExams[examName.toLowerCase()] = examId;
+                                    } catch(e) { alert(`Error creating Exam ${examName}: ` + e.message); continue; }
+                                }
+
+                                for (const subjectName in hierarchy[examName]) {
+                                    // 4. Check Cache using Composite Key
+                                    let folderId = tempFolders[`${examId}_${subjectName.toLowerCase()}`];
+                                    
+                                    if (!folderId) {
+                                        try {
+                                            const ref = db.ref('folders').push();
+                                            folderId = ref.key;
+                                            await ref.set({ name: subjectName, examId: examId });
+                                            // 5. Update Cache immediately
+                                            tempFolders[`${examId}_${subjectName.toLowerCase()}`] = folderId;
+                                        } catch(e) { alert(`Error creating Folder ${subjectName}: ` + e.message); continue; }
+                                    }
+
+                                    for (const topicName in hierarchy[examName][subjectName]) {
+                                        const questions = hierarchy[examName][subjectName][topicName];
+                                        try {
+                                            const fileKey = db.ref('files').push().key;
+                                            await db.ref(`files/${fileKey}`).set({
+                                                name: topicName,
+                                                subject: subjectName,
+                                                folderId: folderId,
+                                                examId: examId,
+                                                count: questions.length,
+                                                date: new Date().toISOString().split('T')[0],
+                                                isPro: false 
+                                            });
+                                            await db.ref(`file_questions/${fileKey}`).set(questions);
+                                            uploadedCount += questions.length;
+                                        } catch(e) { alert(`Error saving file ${topicName}: ` + e.message); }
+                                    }
+                                }
+                            }
+                            resolve();
+                        },
+                        error: (err) => { alert("CSV Parse Error: " + err.message); resolve(); }
+                    });
+                });
+            };
+
+            try {
+                await Promise.all(filesArray.map(processFile));
+                alert(`✅ Upload Complete! Added ${uploadedCount} questions.`);
+            } catch (error) {
+                console.error(error);
+                alert("System Error during upload: " + error.message);
+            } finally {
+                setUploading(false);
+                e.target.value = null;
+            }
         };
 
-        // --- HIERARCHY LOGIC ---
         const createExam = (e) => {
             e.preventDefault();
             const name = new FormData(e.target).get('name');
@@ -369,8 +487,7 @@
             if(name && currentExam) { db.ref('folders').push({ name, examId: currentExam.id }); e.target.reset(); }
         };
 
-        // Actions
-        const deleteExam = (id) => { if(confirm("Delete Exam? This will hide linked folders.")) db.ref(`exams/${id}`).remove(); };
+        const deleteExam = (id) => { if(confirm("Delete Exam?")) db.ref(`exams/${id}`).remove(); };
         const deleteFolder = (id) => {
             const hasFiles = files.some(f => f.folderId === id);
             if (hasFiles) return alert("❌ Cannot delete! Folder is not empty. Delete files first.");
@@ -378,31 +495,27 @@
         };
         const deleteFile = (id) => { if(confirm("Delete File?")) { db.ref(`files/${id}`).remove(); db.ref(`file_questions/${id}`).remove(); } };
         
-        // Renaming
         const saveExamName = (id) => { if(editName.trim()) { db.ref(`exams/${id}`).update({name: editName}); setEditingExam(null); } };
         const saveFolderName = (id) => { if(editName.trim()) { db.ref(`folders/${id}`).update({name: editName}); setEditingFolder(null); } };
+        const saveFileName = (id) => { if(editName.trim()) { db.ref(`files/${id}`).update({name: editName}); setEditingFile(null); } };
 
-        // Move / Copy Logic
         const handleActionSubmit = async () => {
             if(!actionModal || !actionModal.targetExam || !actionModal.targetFolder) return alert("Select Exam & Folder");
-            
             if (actionModal.type === 'move') {
                 await db.ref(`files/${actionModal.file.id}`).update({ 
                     examId: actionModal.targetExam, 
                     folderId: actionModal.targetFolder,
-                    subject: folders.find(f=>f.id===actionModal.targetFolder)?.name // Update fallback name
+                    subject: folders.find(f=>f.id===actionModal.targetFolder)?.name 
                 });
                 alert("File Moved!");
             } else {
-                // COPY LOGIC
                 const oldFile = actionModal.file;
                 const qsSnap = await db.ref(`file_questions/${oldFile.id}`).once('value');
                 const qs = qsSnap.val();
-                
                 const newKey = db.ref('files').push().key;
                 await db.ref(`files/${newKey}`).set({
                     ...oldFile,
-                    id: null, // Clear old ID
+                    id: null,
                     examId: actionModal.targetExam,
                     folderId: actionModal.targetFolder,
                     subject: folders.find(f=>f.id===actionModal.targetFolder)?.name,
@@ -414,7 +527,6 @@
             setActionModal(null);
         };
         
-        // Downloads & Toggles
         const toggleFilePro = (file) => { db.ref(`files/${file.id}`).update({ isPro: !file.isPro }); };
         const downloadFile = async (id, fileName) => {
             const snap = await db.ref(`file_questions/${id}`).once('value');
@@ -427,12 +539,10 @@
             link.click();
         };
 
-        // RESTORED ADMIN USER FUNCTIONS
         const toggleUserType = (uid, currentType) => { const newType = currentType === 'PRO' ? 'FREE' : 'PRO'; db.ref(`users/${uid}`).update({ type: newType }); };
         const toggleBlockUser = (uid, currentStatus) => { db.ref(`users/${uid}`).update({ isBlocked: !currentStatus }); };
         const approveUser = (uid) => { db.ref(`users/${uid}`).update({ type: 'PRO', paymentStatus: 'approved' }); };
         
-        // RESTORED PROMO FUNCTIONS
         const createPromo = (e) => {
             e.preventDefault();
             const data = new FormData(e.target);
@@ -441,7 +551,6 @@
         };
         const deletePromo = (code) => db.ref(`promos/${code}`).remove();
 
-        // --- RENDER HELPERS ---
         const renderBreadcrumbs = () => (
             <div className="flex items-center gap-2 text-sm mb-4 text-gray-500 font-medium">
                 <button onClick={()=>{setCurrentExam(null); setCurrentFolder(null);}} className="hover:text-purple-600">Exams</button>
@@ -464,6 +573,10 @@
                     <div className="p-4 border-t"><button onClick={()=>auth.signOut()} className="w-full flex items-center justify-center gap-2 text-red-500 font-bold p-2 hover:bg-red-50 rounded"><Icons.Logout className="w-4 h-4"/> Logout</button></div>
                 </div>
 
+                {showMobileMenu && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" onClick={() => setShowMobileMenu(false)}></div>
+                )}
+
                 <div className="flex-1 p-4 md:p-8 overflow-y-auto">
                     <div className="md:hidden flex justify-between items-center mb-4"><h1 className="text-lg font-bold flex items-center gap-2"><Icons.Trophy className="text-purple-600"/> Admin</h1><button onClick={()=>setShowMobileMenu(!showMobileMenu)}><Icons.Menu className="w-6 h-6"/></button></div>
                     <div className="glass-card p-6 min-h-[500px]">
@@ -479,7 +592,6 @@
                             <div className="space-y-4">
                                 {renderBreadcrumbs()}
                                 
-                                {/* VIEW 1: EXAM LIST - SMALL ICON RESTORED */}
                                 {!currentExam && (
                                     <>
                                         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
@@ -496,9 +608,11 @@
                                                         <div className="flex gap-2 flex-1"><input value={editName} onChange={(ev)=>setEditName(ev.target.value)} className="p-1 border rounded w-full"/><button onClick={()=>saveExamName(e.id)} className="text-green-500 font-bold">Save</button></div>
                                                     ) : (
                                                         <div onClick={()=>setCurrentExam(e)} className="flex items-center gap-3 cursor-pointer flex-1 p-2">
-                                                            {/* SMALL ICON RESTORED */}
                                                             <Icons.Briefcase className="w-5 h-5 text-gray-500"/>
-                                                            <span className="font-bold text-lg">{e.name}</span>
+                                                            <div>
+                                                                <div className="font-bold text-lg">{e.name}</div>
+                                                                <div className="text-xs text-gray-400 font-bold">{folders.filter(f => f.examId === e.id).length} Subjects</div>
+                                                            </div>
                                                         </div>
                                                     )}
                                                     <div className="flex gap-1">
@@ -511,10 +625,8 @@
                                     </>
                                 )}
 
-                                {/* VIEW 2: FOLDER LIST (Inside Exam) - ICONS REMOVED (PURGE) */}
                                 {currentExam && !currentFolder && (
                                     <>
-                                        {/* REMOVED GIANT ICON FROM HEADER */}
                                         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">📂 {currentExam.name} Folders</h2>
                                         <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 mb-4">
                                             <form onSubmit={createFolder} className="flex gap-2">
@@ -526,7 +638,6 @@
                                             {folders.filter(f => f.examId === currentExam.id).map(f => (
                                                 <div key={f.id} className="flex flex-col p-4 border rounded bg-white hover:shadow-lg transition cursor-pointer relative group" onClick={()=>setCurrentFolder(f)}>
                                                     <div className="flex justify-between items-start mb-2">
-                                                        {/* LARGE FOLDER ICON REMOVED */}
                                                         <div className="font-bold text-lg">{f.name}</div>
                                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition" onClick={e=>e.stopPropagation()}>
                                                             <button onClick={()=>{setEditingFolder(f.id); setEditName(f.name);}} className="p-1 text-gray-400 hover:text-blue-500"><Icons.Edit className="w-3 h-3"/></button>
@@ -543,26 +654,33 @@
                                     </>
                                 )}
 
-                                {/* VIEW 3: FILE LIST (Inside Folder) - LARGE ICONS REMOVED */}
                                 {currentExam && currentFolder && (
                                     <>
-                                        {/* LARGE ICON REMOVED FROM HEADER - NOW JUST TEXT */}
                                         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">📄 {currentFolder.name} Files</h2>
                                         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
                                             <label className="btn-primary px-4 py-2 rounded cursor-pointer text-sm font-bold flex items-center justify-center gap-2 w-full md:w-auto">
-                                                <Icons.Upload className="w-4 h-4"/> Upload CSV to {currentFolder.name}
-                                                <input type="file" hidden accept=".csv" onChange={handleCSV} />
+                                                <Icons.Upload className="w-4 h-4"/> Upload CSV(s) to {currentFolder.name}
+                                                <input type="file" hidden accept=".csv" multiple onChange={handleCSV} />
                                             </label>
                                             {uploading && <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div className="bg-blue-600 h-2.5 rounded-full w-full animate-pulse"></div></div>}
                                         </div>
                                         <div className="space-y-2">
                                             {files.filter(f => f.folderId === currentFolder.id).map(f => (
                                                 <div key={f.id} className="flex flex-col md:flex-row justify-between items-center p-3 border rounded bg-white gap-3">
-                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="flex items-center gap-3 overflow-hidden flex-1">
                                                         <div className="bg-blue-100 p-2 rounded text-blue-600"><Icons.File className="w-5 h-5"/></div>
-                                                        <div className="min-w-0">
-                                                            <div className="font-bold text-sm truncate">{f.name}</div>
-                                                            <div className="text-xs text-gray-500">{f.count} Qs • {f.date}</div>
+                                                        <div className="min-w-0 w-full">
+                                                            {editingFile === f.id ? (
+                                                                <div className="flex gap-2 w-full"><input value={editName} onChange={e=>setEditName(e.target.value)} className="border rounded p-1 text-sm w-full"/><button onClick={()=>saveFileName(f.id)} className="text-green-600 text-xs font-bold">SAVE</button></div>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="font-bold text-sm truncate flex items-center gap-2">
+                                                                        {f.name}
+                                                                        <button onClick={()=>{setEditingFile(f.id); setEditName(f.name);}} className="text-gray-400 hover:text-blue-500"><Icons.Edit className="w-3 h-3"/></button>
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-500">{f.count} Qs • {f.date}</div>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2 items-center flex-shrink-0">
@@ -582,7 +700,6 @@
                             </div>
                         )}
                         
-                        {/* MODAL: MOVE/COPY */}
                         {actionModal && (
                             <div className="modal-overlay" onClick={()=>setActionModal(null)}>
                                 <div className="glass-card p-6 w-96 animate-fade-in" onClick={e=>e.stopPropagation()}>
@@ -611,12 +728,10 @@
                             </div>
                         )}
 
-                        {/* RESTORED V1.4 USER TABLE & ACTIONS */}
                         {tab === 'users' && (
                             <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-gray-50 text-left"><tr><th className="p-3">User</th><th className="p-3">Status</th><th className="p-3">Actions</th><th className="p-3">Role</th><th className="p-3">Block</th></tr></thead><tbody>{users.map(u => (<tr key={u.uid} className="border-b"><td className="p-3"><div>{u.name}</div><div className="text-xs text-gray-500">{u.email}</div></td><td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${u.type==='PRO'?'bg-yellow-100 text-yellow-700':'bg-gray-100'}`}>{u.type}</span></td><td className="p-3"><div className="flex gap-2"><button onClick={()=>setSelectedUser(u)} className="bg-blue-100 text-blue-600 px-2 py-1 rounded">View</button>{u.paymentStatus === 'pending' && <button onClick={()=>approveUser(u.uid)} className="bg-green-500 text-white px-2 py-1 rounded">Approve</button>}</div></td><td className="p-3"><button onClick={()=>toggleUserType(u.uid, u.type)} className="text-xs underline text-blue-600">Switch</button></td><td className="p-3"><button onClick={()=>toggleBlockUser(u.uid, u.isBlocked)} className={`p-2 rounded text-white ${u.isBlocked ? 'bg-green-500' : 'bg-red-500'}`}>{u.isBlocked ? 'Unblock' : 'Block'}</button></td></tr>))}</tbody></table></div>
                         )}
                         
-                        {/* RESTORED V1.4 PROMO TAB */}
                         {tab === 'promo' && (
                              <div className="space-y-6"><form onSubmit={createPromo} className="flex gap-2 bg-gray-50 p-4 rounded-lg"><input name="code" placeholder="Code" className="p-2 border rounded w-1/3" required/><input name="discount" type="number" placeholder="%" className="p-2 border rounded w-1/4" required/><input name="limit" type="number" placeholder="Limit" className="p-2 border rounded w-1/4" required/><button className="btn-primary px-4 rounded font-bold text-sm">Add</button></form><div className="space-y-2">{promos.map(p => (<div key={p.code} className="flex justify-between items-center p-3 border rounded bg-white"><div className="font-bold">{p.code} <span className="text-gray-500 font-normal text-sm">({p.discount}% off)</span></div><button onClick={()=>deletePromo(p.code)} className="text-red-500 text-xs font-bold hover:underline">Delete</button></div>))}</div></div>
                         )}
@@ -652,9 +767,9 @@
         const [files, setFiles] = useState([]);
         
         // Selections
-        const [selectedExam, setSelectedExam] = useState(""); 
-        const [selectedFolder, setSelectedFolder] = useState(""); // Folder ID or "all"
-        const [selectedFile, setSelectedFile] = useState("random"); // File ID or "random"
+        const [selectedExam, setSelectedExam] = useState(localStorage.getItem('QUIZ_LAST_EXAM') || ""); 
+        const [selectedFolder, setSelectedFolder] = useState("");
+        const [selectedFile, setSelectedFile] = useState("random");
         
         // Config
         const [gameTimer, setGameTimer] = useState("10"); 
@@ -671,7 +786,6 @@
         const [promoInput, setPromoInput] = useState("");
         const [discountApplied, setDiscountApplied] = useState(false);
         
-        // MODAL TOGGLES
         const [showAbout, setShowAbout] = useState(false);
         const [showContact, setShowContact] = useState(false);
         const [contactLinks, setContactLinks] = useState({});
@@ -685,15 +799,14 @@
         const [questions, setQuestions] = useState([]);
         const [qIndex, setQIndex] = useState(0);
         const [answers, setAnswers] = useState({});
+        const [reviewList, setReviewList] = useState([]); 
         const [timeLeft, setTimeLeft] = useState(0);
+        const [endTime, setEndTime] = useState(0); 
         const [players, setPlayers] = useState([]);
         const [scores, setScores] = useState([]);
         const [submitted, setSubmitted] = useState(false);
         const [gameSubject, setGameSubject] = useState("");
-        const [gameNeg, setGameNeg] = useState(0); // For Results
-
-        const timerRef = useRef(null);
-        const hbRef = useRef(null);
+        const [gameNeg, setGameNeg] = useState(0);
 
         useEffect(() => {
             db.ref(`users/${user.uid}`).on('value', s => { setUserData(s.val()); if(s.val()?.name) setPlayerName(s.val().name); });
@@ -710,10 +823,27 @@
             });
         }, []);
         
+        useEffect(() => {
+            if(selectedExam && exams.length > 0) {
+                const exists = exams.some(e => e.id === selectedExam);
+                if(!exists) {
+                    setSelectedExam("");
+                    localStorage.removeItem('QUIZ_LAST_EXAM');
+                }
+            }
+        }, [selectedExam, exams]);
+        
+        const toggleMenu = (type) => {
+            setMenuState({ 
+                exam: type === 'exam' ? !menuState.exam : false,
+                folder: type === 'folder' ? !menuState.folder : false,
+                file: type === 'file' ? !menuState.file : false
+            });
+        };
+        
         const toggleNeg = () => {
             const newVal = !negMarking;
             setNegMarking(newVal);
-            // FIXED: Removed popup alert
         };
         
         const getPlayerStatus = (lastSeen) => {
@@ -724,7 +854,6 @@
             return { color: 'bg-gray-400', text: `${sec < 60 ? sec+'s' : Math.floor(sec/60)+'m'} ago` };
         };
         
-        // RESTORED: PROMO CODE LOGIC
         const applyPromo = async () => {
             if(!promoInput) return;
             const snap = await db.ref(`promos/${promoInput}`).once('value');
@@ -748,22 +877,42 @@
             if(!selectedExam || !selectedFolder) return alert("Select Exam and Subject");
 
             const isPro = userData.type === 'PRO';
-            let finalQuestions = [];
             let targetFiles = [];
-            
+            let requiresProRoom = false; 
+
+            // --- BUG FIX #2: BANDWIDTH KILLER (SMART SAMPLING) ---
             if (selectedFolder === 'all') {
-                targetFiles = files.filter(f => f.examId === selectedExam);
+                const allFiles = files.filter(f => f.examId === selectedExam);
+                if (allFiles.length === 0) return alert("No files found.");
+                
+                // Sampling: Pick 5 random files instead of fetching ALL files
+                targetFiles = allFiles.sort(() => 0.5 - Math.random()).slice(0, 5);
+                if (isPro) requiresProRoom = true;
             } else {
                 const folderFiles = files.filter(f => f.folderId === selectedFolder);
-                if (selectedFile === 'random') targetFiles = folderFiles;
-                else targetFiles = folderFiles.filter(f => f.id === selectedFile);
+                if (selectedFile === 'random') {
+                    // Sampling: Pick 5 random files from the folder
+                    targetFiles = folderFiles.sort(() => 0.5 - Math.random()).slice(0, 5);
+                    if (isPro) requiresProRoom = true;
+                }
+                else {
+                    targetFiles = folderFiles.filter(f => f.id === selectedFile);
+                    if (targetFiles.length > 0 && targetFiles[0].isPro) requiresProRoom = true;
+                }
             }
             
-            if (targetFiles.length === 0) return alert("No questions available in this selection.");
-            if (targetFiles.some(f => f.isPro) && !isPro) return alert("🔒 Selection contains PRO content. Upgrade required.");
+            // Validation for Free Users
+            if (!isPro && (selectedFolder === 'all' || selectedFile === 'random')) {
+                 targetFiles = targetFiles.filter(f => !f.isPro);
+                 if (targetFiles.length === 0) return alert("All selected files are PRO only. Upgrade to access.");
+            } else if (targetFiles.length === 0) {
+                 return alert("No questions available.");
+            } else if (targetFiles.some(f => f.isPro) && !isPro) {
+                 return alert("🔒 Selection contains PRO content. Upgrade required.");
+            }
 
-            // Fetch Questions
             let allQs = [];
+            // Now we fetch ONLY the sampled 5 files (much smaller payload)
             for (const f of targetFiles) {
                 const snap = await db.ref(`file_questions/${f.id}`).once('value');
                 if(snap.val()) allQs = [...allQs, ...snap.val()];
@@ -771,27 +920,35 @@
 
             if(allQs.length === 0) return alert("No questions found.");
 
-            // FIX 4: RESTORED 80/20 LOGIC
+            let finalQuestions = [];
             if (!isPro) {
                 finalQuestions = allQs.sort(() => 0.5 - Math.random()).slice(0, 10);
             } else {
-                // Pro Logic: 20% mistakes, 80% fresh
-                const currentFolderObj = folders.find(f => f.id === selectedFolder);
-                const folderName = currentFolderObj ? currentFolderObj.name : "General";
+                let oldMistakes = [];
+                if (selectedFolder !== 'all') {
+                    const currentFolderObj = folders.find(f => f.id === selectedFolder);
+                    const folderName = currentFolderObj ? currentFolderObj.name : "General";
+                    
+                    // --- BUG FIX #3: MISTAKE HISTORY OVER-FETCH ---
+                    // Added .limitToLast(50)
+                    const mistakesSnap = await db.ref(`users/${user.uid}/mistakes/${folderName}`)
+                                                 .orderByKey()
+                                                 .limitToLast(50)
+                                                 .once('value');
+                    oldMistakes = mistakesSnap.val() ? Object.values(mistakesSnap.val()) : [];
+                }
                 
-                const mistakesSnap = await db.ref(`users/${user.uid}/mistakes/${folderName}`).once('value');
-                let oldMistakes = mistakesSnap.val() ? Object.values(mistakesSnap.val()) : [];
                 const totalLimit = 20;
-                const mistakeLimit = Math.floor(totalLimit * 0.2); // 4 questions
+                const mistakeLimit = Math.floor(totalLimit * 0.2); 
                 
                 if (oldMistakes.length > 0) {
                     const pickedMistakes = oldMistakes.sort(() => 0.5 - Math.random()).slice(0, mistakeLimit);
                     finalQuestions = [...pickedMistakes];
+                    requiresProRoom = true;
                 }
                 const remainingCount = totalLimit - finalQuestions.length;
                 if (remainingCount > 0) {
                      let shuffledFresh = allQs.sort(() => 0.5 - Math.random());
-                     // Deduplicate based on question text
                      const existingQs = new Set(finalQuestions.map(q => q.Question || q.question));
                      const filteredFresh = shuffledFresh.filter(q => !existingQs.has(q.Question || q.question));
                      finalQuestions = [...finalQuestions, ...filteredFresh.slice(0, remainingCount)];
@@ -802,11 +959,9 @@
                 id: i,
                 q: q.Question || q.question,
                 opts: [q["Option A"], q["Option B"], q["Option C"], q["Option D"]].filter(Boolean),
-                // UPDATED: Aggressive normalization for existing data
                 correct: (() => {
                     const raw = q["Correct Option"] || q["Answer"] || "";
                     if (!raw) return "";
-                    // If raw is "Option A", try to find text.
                     const lower = String(raw).toLowerCase().trim();
                     if (lower.includes("option") || lower.length <= 3) {
                         if (lower.includes("a")) return q["Option A"] || raw;
@@ -820,14 +975,16 @@
             }));
 
             const code = Math.floor(1000 + Math.random() * 9000).toString();
-            const timeSec = parseInt(gameTimer) * 60;
+            const durationSec = Math.floor(parseFloat(gameTimer) * 60);
             const subName = selectedFolder === 'all' ? 'FULL MOCK' : folders.find(f=>f.id===selectedFolder)?.name;
 
             await db.ref(`games/${code}`).set({
                 status: 'waiting',
-                timer: timeSec,
+                duration: durationSec, 
+                startTime: 0,
                 subject: subName,
                 questions: gameQs,
+                requiresPro: requiresProRoom, 
                 neg: negMarking ? parseFloat(negValue) : 0,
                 players: { [user.uid]: { name: playerName, host: true, score: 0, lastSeen: Date.now() } }
             });
@@ -836,7 +993,7 @@
             setIsHost(true);
             setQuestions(gameQs);
             setGameSubject(subName);
-            setTimeLeft(timeSec);
+            setTimeLeft(durationSec);
             setGameNeg(negMarking ? parseFloat(negValue) : 0);
             setView('lobby');
         };
@@ -845,10 +1002,22 @@
             if(!joinCode || !playerName) return alert("Enter Code & Name");
             const snap = await db.ref(`games/${joinCode}`).once('value');
             if(!snap.exists()) return alert("Invalid Code");
+            
+            const gameData = snap.val();
+            
+            if (gameData.requiresPro && userData.type !== 'PRO') {
+                return alert("🚫 Premium Room Access Denied\n\nThis room is using PRO content. You need to upgrade to join.");
+            }
+            
             await db.ref(`games/${joinCode}/players/${user.uid}`).set({ name: playerName, host: false, score: 0, lastSeen: Date.now() });
             setGameCode(joinCode);
             setIsHost(false);
             setView('lobby');
+        };
+        
+        const leaveLobby = () => {
+             db.ref(`games/${gameCode}/players/${user.uid}`).remove();
+             setView('home');
         };
 
         const handleSubmit = () => {
@@ -861,7 +1030,6 @@
                 const c = String(q.correct || "").trim().toLowerCase();
                 let match = false;
                 if(u) {
-                     // Robust text matching
                      if (u === c) match = true;
                      else if (c.includes(u) || u.includes(c)) match = true;
                      
@@ -872,10 +1040,8 @@
                 }
             });
             
-            // SCORE CALCULATION WITH NEGATIVE MARKING
             const finalScore = correct - (wrong * gameNeg);
             
-            // SAVE MISTAKES (If PRO and not a Full Mock)
             if (mistakes.length > 0 && userData.type === 'PRO' && selectedFolder !== 'all') { 
                 const folderName = folders.find(f => f.id === selectedFolder)?.name || "General";
                 mistakes.forEach(m => { db.ref(`users/${user.uid}/mistakes/${folderName}`).push(m); });
@@ -886,32 +1052,83 @@
             setView('results');
         };
 
-        // Standard Game Effects
         useEffect(() => {
             if (view === 'lobby' || view === 'game') {
                 const gr = db.ref(`games/${gameCode}`);
-                // Heartbeat for online status
                 const hb = setInterval(() => gr.child(`players/${user.uid}`).update({ lastSeen: Date.now() }), 5000);
+                
                 gr.child('players').on('value', s => setPlayers(Object.values(s.val()||{})));
-                gr.child('status').on('value', s => { if (s.val() === 'started' && view === 'lobby') setView('game'); });
+                
+                gr.child('status').on('value', s => { 
+                    if (s.val() === 'started' && view === 'lobby') {
+                        setView('game'); 
+                    }
+                });
+
                 if (!isHost) {
                     gr.child('questions').once('value', s => setQuestions(s.val()||[]));
-                    gr.child('timer').once('value', s => setTimeLeft(s.val()));
                     gr.child('subject').on('value', s => setGameSubject(s.val()));
                     gr.child('neg').once('value', s => setGameNeg(s.val() || 0));
                 }
-                // Leaderboard sorting
+                
+                gr.child('startTime').on('value', s => {
+                    const startTimestamp = s.val();
+                    if(startTimestamp > 0) {
+                        gr.child('duration').once('value', d => {
+                             const durationSeconds = d.val();
+                             setEndTime(startTimestamp + (durationSeconds * 1000));
+                        });
+                    }
+                });
+
                 gr.child('players').on('value', s => { if(s.val()) setScores(Object.values(s.val()).filter(p => p.score !== undefined).sort((a,b) => parseFloat(b.score) - parseFloat(a.score))); });
-                return () => { clearInterval(hb); gr.off(); };
+                
+                return () => { 
+                    clearInterval(hb); 
+                    gr.off();
+                    gr.child('startTime').off(); 
+                };
             }
         }, [view, gameCode]);
 
+        // --- BUG FIX #4: TIMER THROTTLING & MOBILE BACKGROUND ---
         useEffect(() => {
-            if (view === 'game' && timeLeft > 0) { const t = setInterval(()=>setTimeLeft(p=>p-1),1000); return ()=>clearInterval(t); }
-            if (view === 'game' && timeLeft === 0 && !submitted) handleSubmit();
-        }, [view, timeLeft]);
+            if (view === 'game' && endTime > 0) { 
+                let serverOffset = 0;
+                db.ref('.info/serverTimeOffset').once('value', snap => {
+                    serverOffset = snap.val() || 0;
+                });
 
-        // RESTORED: PAYMENT VIEW FROM V1.4
+                // Immediate check if user returns late
+                const now = Date.now() + serverOffset;
+                if (now > endTime && !submitted) {
+                    handleSubmit();
+                    return;
+                }
+
+                const t = setInterval(()=> {
+                    const now = Date.now() + serverOffset; 
+                    const remaining = Math.ceil((endTime - now) / 1000);
+                    
+                    if(remaining <= 0) {
+                        setTimeLeft(0);
+                        if(!submitted) handleSubmit();
+                        clearInterval(t);
+                    } else {
+                        setTimeLeft(remaining);
+                    }
+                }, 1000); 
+                return ()=>clearInterval(t); 
+            }
+        }, [view, endTime, submitted]);
+        
+        const handleStartGame = () => {
+             db.ref(`games/${gameCode}`).update({
+                 status: 'started',
+                 startTime: firebase.database.ServerValue.TIMESTAMP
+             });
+        };
+
         if (view === 'payment') return (
             <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="glass-card w-full max-w-sm p-8 text-center animate-fade-in relative">
@@ -930,7 +1147,6 @@
             </div>
         );
 
-        // --- VIEWS ---
         if (view === 'home') {
             const currentExamFolders = folders.filter(f => f.examId === selectedExam);
             const currentFolderFiles = files.filter(f => f.folderId === selectedFolder);
@@ -940,7 +1156,6 @@
                     <div className="glass-card w-full max-w-sm p-8 text-center animate-fade-in relative">
                         <button onClick={()=>auth.signOut()} className="absolute top-4 right-4 text-gray-400"><Icons.Logout className="w-5 h-5"/></button>
                         <div className="absolute top-4 left-4 flex gap-2">
-                             {/* FIXED: INFO BUTTONS CALLING MODALS */}
                              <button onClick={()=>setShowAbout(true)} className="text-gray-400 hover:text-purple-600 flex flex-col items-center"><Icons.Info className="w-5 h-5" /><span className="text-[8px] font-bold">ABOUT</span></button>
                              <button onClick={()=>setShowContact(true)} className="text-gray-400 hover:text-blue-600 flex flex-col items-center"><Icons.Phone className="w-5 h-5" /><span className="text-[8px] font-bold">CONTACT</span></button>
                         </div>
@@ -952,48 +1167,58 @@
 
                         <div className="text-left mb-2 text-xs font-bold text-gray-500">New Game Setup</div>
                         
-                        {/* 1. EXAM */}
-                        <div className="mb-2 relative">
-                            <button onClick={()=>setMenuState({...menuState, exam: !menuState.exam})} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center">
+                        <div className="mb-4 relative">
+                            <button onClick={()=>toggleMenu('exam')} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center">
                                 <span className="truncate">{exams.find(e=>e.id===selectedExam)?.name || "Select Exam"}</span> <Icons.ChevronDown className="w-4 h-4 text-gray-400"/>
                             </button>
                             {menuState.exam && (
-                                <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto">
-                                    {exams.map(e => <button key={e.id} onClick={()=>{setSelectedExam(e.id); setSelectedFolder(""); setSelectedFile("random"); setMenuState({...menuState, exam: false});}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b font-bold text-gray-700">{e.name}</button>)}
+                                <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
+                                    {exams.map(e => <button key={e.id} onClick={()=>{
+                                        setSelectedExam(e.id); 
+                                        localStorage.setItem('QUIZ_LAST_EXAM', e.id); 
+                                        setSelectedFolder(""); 
+                                        setSelectedFile("random"); 
+                                        toggleMenu('');
+                                    }} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b font-bold text-gray-700">{e.name}</button>)}
                                 </div>
                             )}
                         </div>
 
-                        {/* 2. FOLDER (SUBJECT) */}
-                        <div className="mb-2 relative">
-                            <button disabled={!selectedExam} onClick={()=>setMenuState({...menuState, folder: !menuState.folder})} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center disabled:opacity-50">
+                        <div className="mb-4 relative">
+                            <button disabled={!selectedExam} onClick={()=>toggleMenu('folder')} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center disabled:opacity-50">
                                 <span className="truncate">{selectedFolder === 'all' ? "📚 Full Mock (All Subjects)" : folders.find(f=>f.id===selectedFolder)?.name || "Select Subject"}</span> <Icons.ChevronDown className="w-4 h-4 text-gray-400"/>
                             </button>
                             {menuState.folder && selectedExam && (
-                                <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto">
-                                    <button onClick={()=>{setSelectedFolder("all"); setMenuState({...menuState, folder: false});}} className="w-full text-left px-3 py-2 text-sm bg-purple-50 text-purple-700 font-bold border-b">📚 ALL SUBJECTS (Full Mock)</button>
-                                    {currentExamFolders.map(f => <button key={f.id} onClick={()=>{setSelectedFolder(f.id); setSelectedFile("random"); setMenuState({...menuState, folder: false});}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b text-gray-700 font-medium">{f.name}</button>)}
+                                <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
+                                    <button onClick={()=>{setSelectedFolder("all"); toggleMenu('');}} className="w-full text-left px-3 py-2 text-sm bg-purple-50 text-purple-700 font-bold border-b">📚 ALL SUBJECTS (Full Mock)</button>
+                                    {currentExamFolders.map(f => <button key={f.id} onClick={()=>{setSelectedFolder(f.id); setSelectedFile("random"); toggleMenu('');}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b text-gray-700 font-medium">{f.name}</button>)}
                                 </div>
                             )}
                         </div>
 
-                        {/* 3. FILE (TOPIC) - Hidden if Mock */}
                         {selectedFolder !== 'all' && (
-                            <div className="mb-2 relative">
-                                <button disabled={!selectedFolder} onClick={()=>setMenuState({...menuState, file: !menuState.file})} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center disabled:opacity-50">
+                            <div className="mb-4 relative">
+                                <button disabled={!selectedFolder} onClick={()=>toggleMenu('file')} className="w-full p-2 border rounded text-sm text-left flex justify-between bg-white items-center disabled:opacity-50">
                                     <span className="truncate">{selectedFile === 'random' ? "🔀 Random (Mix Topics)" : files.find(f=>f.id===selectedFile)?.name}</span> <Icons.ChevronDown className="w-4 h-4 text-gray-400"/>
                                 </button>
                                 {menuState.file && selectedFolder && (
-                                    <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto">
-                                        <button onClick={()=>{setSelectedFile("random"); setMenuState({...menuState, file: false});}} className="w-full text-left px-3 py-2 text-sm bg-gray-50 font-bold border-b">🔀 Random (Mix Topics)</button>
-                                        {currentFolderFiles.map(f => <button key={f.id} onClick={()=>{setSelectedFile(f.id); setMenuState({...menuState, file: false});}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 block border-b text-gray-600 truncate">{f.name}</button>)}
+                                    <div className="absolute top-full w-full bg-white border rounded shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
+                                        <button onClick={()=>{setSelectedFile("random"); toggleMenu('');}} className="w-full text-left px-3 py-2 text-sm bg-gray-50 font-bold border-b">🔀 Random (Mix Topics)</button>
+                                        {currentFolderFiles.map(f => (
+                                            <button key={f.id} onClick={()=>{setSelectedFile(f.id); toggleMenu('');}} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex justify-between items-center border-b text-gray-600">
+                                                <span className="truncate flex-1">{f.name}</span>
+                                                {f.isPro ? 
+                                                    <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-700 px-1 rounded border border-yellow-200">PRO</span> : 
+                                                    <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1 rounded border border-green-200">FREE</span>
+                                                }
+                                            </button>
+                                        ))}
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* TIMER & NEG MARKING */}
-                        <div className="flex items-center gap-2 mb-4 mt-4 bg-gray-50 p-2 rounded-lg border">
+                        <div className="flex items-center gap-2 mb-4 mt-2 bg-gray-50 p-2 rounded-lg border">
                              <div className="flex-1 text-left">
                                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Time (Mins)</label>
                                  <input type="number" className="w-full p-1 border rounded text-center font-bold" value={gameTimer} onChange={e=>setGameTimer(e.target.value)}/>
@@ -1023,7 +1248,6 @@
                         <button onClick={joinGame} className="w-full bg-gray-800 text-white py-3 rounded-lg font-bold shadow-lg">Join Room</button>
                         <Copyright />
                     </div>
-                    {/* FIXED: MODALS AT ROOT LEVEL OF HOME VIEW */}
                     {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
                     {showContact && <ContactModal links={contactLinks} onClose={() => setShowContact(false)} />}
                 </div>
@@ -1033,50 +1257,135 @@
         if (view === 'lobby') return (
             <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="glass-card w-full max-w-lg p-8 text-center relative">
-                    <button onClick={()=>setView('home')} className="absolute top-4 left-4 text-gray-400 font-bold flex items-center gap-1 text-sm"><Icons.Back className="w-4 h-4"/> Back</button>
+                    <button onClick={leaveLobby} className="absolute top-4 left-4 text-gray-400 font-bold flex items-center gap-1 text-sm"><Icons.Back className="w-4 h-4"/> Back</button>
                     <div className="mt-8 md:mt-0"><h2 className="text-2xl font-bold mb-1">Lobby <span className="text-purple-600 font-mono">{gameCode}</span></h2>
                     <p className="text-gray-500 text-sm mb-6 flex justify-center items-center gap-2">
                         {gameNeg > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold">-{gameNeg} Negative Marking</span>}
                         <span>Waiting for players...</span>
                     </p></div>
-                    {/* FIX 5: RESTORED ONLINE STATUS INDICATOR IN LOBBY */}
                     <div className="flex flex-wrap gap-2 justify-center mb-8">{players.map((p,i) => { const st = getPlayerStatus(p.lastSeen); return <div key={i} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${st.color}`}></div> {p.name}</div>; })}</div>
-                    {isHost ? <button onClick={()=>db.ref(`games/${gameCode}`).update({status: 'started'})} className="btn-primary px-8 py-3 rounded-lg font-bold">Start Game</button> : <div className="animate-pulse text-purple-600 font-bold">Get Ready!</div>}
+                    {isHost ? <button onClick={handleStartGame} className="btn-primary px-8 py-3 rounded-lg font-bold">Start Game</button> : <div className="animate-pulse text-purple-600 font-bold">Get Ready!</div>}
                 </div>
             </div>
         );
 
-        if (view === 'game') return (
-            <div className="min-h-screen flex flex-col p-4 max-w-3xl mx-auto">
-                {/* FIX 5: RESTORED ONLINE STATUS INDICATOR IN GAME */}
-                <div className="glass-card p-2 mb-2 flex gap-2 overflow-x-auto custom-scroll">{players.map((p,i) => { const st = getPlayerStatus(p.lastSeen); return <div key={i} className="flex-shrink-0 px-2 py-1 bg-gray-50 rounded border flex items-center gap-1.5"><div className={`w-2 h-2 rounded-full ${st.color}`}></div><span className="text-xs font-bold text-gray-700">{p.name}</span>{st.text && <span className="text-[9px] text-gray-400">{st.text}</span>}</div>; })}</div>
-                <div className="glass-card p-3 md:p-4 mb-4 sticky top-2 z-10">
-                    <div className="flex justify-between items-center">
-                         <div className="flex items-center gap-2">
-                             <div className="font-bold truncate max-w-[120px]">{playerName}</div>
-                             {gameNeg > 0 && <span className="text-[10px] bg-red-100 text-red-600 border border-red-200 px-1 rounded font-bold">-{gameNeg}</span>}
-                         </div>
-                         <div className="flex items-center gap-3">
-                             <div className={`text-xl font-mono font-bold flex items-center gap-1 ${timeLeft<=10?'text-red-500 timer-blink':'text-green-600'}`}><Icons.Clock className="w-4 h-4"/> {Math.floor(timeLeft/60)}:{(timeLeft%60).toString().padStart(2,'0')}</div>
-                             <button onClick={()=>setView('home')} className="bg-red-100 text-red-500 px-3 py-1 rounded text-xs font-bold">Quit</button>
-                         </div>
+        if (view === 'game') {
+            const toggleReview = () => {
+                if (reviewList.includes(qIndex)) {
+                    setReviewList(reviewList.filter(i => i !== qIndex));
+                } else {
+                    setReviewList([...reviewList, qIndex]);
+                }
+            };
+
+            const getPaletteColor = (idx) => {
+                if (qIndex === idx) return "ring-2 ring-purple-600 border-purple-600";
+                if (reviewList.includes(idx)) return "bg-purple-500 text-white border-purple-600";
+                if (answers[idx]) return "bg-green-500 text-white border-green-600";
+                return "bg-gray-100 text-gray-600 hover:bg-gray-200";
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col md:flex-row max-w-7xl mx-auto bg-gray-50 h-screen overflow-hidden">
+                    <div className="flex-1 flex flex-col h-full relative">
+                        <div className="bg-white px-3 py-1 border-b flex gap-2 overflow-x-auto custom-scroll shadow-sm z-20 h-10 items-center">
+                            {players.map((p,i) => { 
+                                const st = getPlayerStatus(p.lastSeen); 
+                                return <div key={i} className="flex-shrink-0 px-2 py-0.5 bg-gray-50 rounded border flex items-center gap-1.5"><div className={`w-1.5 h-1.5 rounded-full ${st.color}`}></div><span className="text-[10px] font-bold text-gray-700">{p.name}</span></div>; 
+                            })}
+                        </div>
+
+                        <div className="bg-white p-3 border-b flex justify-between items-center shadow-sm z-10">
+                            <div className="flex items-center gap-3">
+                                <div className="font-bold text-gray-700 truncate max-w-[150px]">{playerName}</div>
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold uppercase">{gameSubject}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className={`text-xl font-mono font-bold flex items-center gap-2 ${timeLeft<=60?'text-red-600 animate-pulse':'text-gray-700'}`}>
+                                    <Icons.Clock className="w-5 h-5"/> 
+                                    {Math.floor(timeLeft/60)}:{(timeLeft%60).toString().padStart(2,'0')}
+                                </div>
+                                <button onClick={()=>setView('home')} className="bg-red-100 text-red-500 px-3 py-1 rounded text-xs font-bold">Quit</button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scroll">
+                            <div className="max-w-3xl mx-auto">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-sm font-bold text-gray-500">Question {qIndex + 1} / {questions.length}</span>
+                                    <div className="flex gap-2">
+                                        <button onClick={toggleReview} className={`px-3 py-1 rounded text-xs font-bold border flex items-center gap-1 transition ${reviewList.includes(qIndex) ? 'bg-purple-100 text-purple-700 border-purple-300' : 'text-gray-500 border-gray-300'}`}>
+                                            <Icons.Eye className="w-3 h-3"/> {reviewList.includes(qIndex) ? 'Marked' : 'Mark for Review'}
+                                        </button>
+                                        {gameNeg > 0 && <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded border border-red-100">-{gameNeg} Negative</span>}
+                                    </div>
+                                </div>
+                                
+                                {questions[qIndex]?.info && <span className="asked-in-tag">{questions[qIndex].info}</span>}
+                                
+                                <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-6 leading-relaxed select-none">
+                                    {questions?.[qIndex]?.q}
+                                </h2>
+                                
+                                <div className="space-y-3">
+                                    {questions?.[qIndex]?.opts.map((opt, i) => (
+                                        <button key={i} onClick={() => setAnswers({...answers, [qIndex]: opt})} 
+                                            className={`w-full text-left p-4 rounded-xl border transition-all duration-200 flex items-center gap-3 group ${answers[qIndex] === opt ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500 shadow-sm' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`}>
+                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${answers[qIndex] === opt ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-500 border-gray-300 group-hover:border-blue-400'}`}>
+                                                {String.fromCharCode(65 + i)}
+                                            </span>
+                                            <span className="text-sm md:text-base text-gray-700">{opt}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-4 border-t flex justify-between items-center z-10">
+                            <button disabled={qIndex===0} onClick={()=>setQIndex(qIndex-1)} className="px-6 py-2 rounded-lg font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition">Previous</button>
+                            <button onClick={()=>setAnswers({...answers, [qIndex]: null})} className="text-xs text-red-500 font-bold hover:underline">Clear Selection</button>
+                            {qIndex < questions.length - 1 ? ( 
+                                <button onClick={()=>setQIndex(qIndex+1)} className="px-8 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-700 transition shadow-lg">Next</button> 
+                            ) : ( 
+                                <button onClick={handleSubmit} className="px-8 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition shadow-lg">Submit Exam</button> 
+                            )}
+                        </div>
                     </div>
-                    <div className="text-xs font-bold text-center text-purple-600 uppercase tracking-widest mt-1 truncate">{gameSubject}</div>
-                </div>
-                <div className="glass-card p-6 flex-1">
-                    <div className="flex justify-between items-start mb-4"><span className="text-xs font-bold text-gray-400">Question {qIndex + 1} of {questions.length}</span>{questions[qIndex]?.info && <span className="asked-in-tag">{questions[qIndex].info}</span>}</div>
-                    <h2 className="text-lg font-bold text-gray-800 mb-6">{questions?.[qIndex]?.q}</h2>
-                    <div className="space-y-3">{questions?.[qIndex]?.opts.map((opt, i) => (<button key={i} onClick={() => setAnswers({...answers, [qIndex]: opt})} className={`w-full text-left p-4 rounded-lg border transition ${answers[qIndex] === opt ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'hover:bg-gray-50'}`}>{opt}</button>))}</div>
-                    <div className="flex justify-between mt-8 pt-4 border-t">
-                        <button disabled={qIndex===0} onClick={()=>setQIndex(qIndex-1)} className="px-4 py-2 bg-gray-100 rounded disabled:opacity-50">Prev</button>
-                        {qIndex < questions.length - 1 ? ( <button onClick={()=>setQIndex(qIndex+1)} className="px-4 py-2 bg-gray-800 text-white rounded">Next</button> ) : ( <button onClick={handleSubmit} className="px-4 py-2 btn-primary rounded">Finish</button> )}
+
+                    <div className="hidden md:flex flex-col w-72 bg-white border-l z-20 shadow-xl">
+                        <div className="p-4 border-b bg-gray-50">
+                            <h3 className="font-bold text-gray-700 flex items-center gap-2"><Icons.Grid className="w-4 h-4"/> Question Palette</h3>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 custom-scroll">
+                            <div className="grid grid-cols-5 gap-2">
+                                {questions.map((_, idx) => (
+                                    <button key={idx} onClick={() => setQIndex(idx)} 
+                                        className={`h-10 w-full rounded-lg text-xs font-bold border transition ${getPaletteColor(idx)}`}>
+                                        {idx + 1}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 border-t bg-gray-50 text-[10px] space-y-2 text-gray-500 font-medium">
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-500 rounded"></div> Answered</div>
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-500 rounded"></div> Marked for Review</div>
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded"></div> Not Visited</div>
+                        </div>
+                    </div>
+                    
+                    <div className="md:hidden bg-white border-t p-2 flex gap-2 overflow-x-auto">
+                         {questions.map((_, idx) => (
+                            <button key={idx} onClick={() => setQIndex(idx)} 
+                                className={`flex-shrink-0 w-8 h-8 rounded text-xs font-bold border ${getPaletteColor(idx)}`}>
+                                {idx + 1}
+                            </button>
+                        ))}
                     </div>
                 </div>
-            </div>
-        );
+            );
+        }
 
         if (view === 'results') {
-            // FIX 3: RESTORED V1.4 RESULTS GRID & BADGES
             let myCorrect = 0;
             questions.forEach((q, i) => { 
                 const u = String(answers[i] || "").trim().toLowerCase();
@@ -1090,34 +1399,101 @@
             });
             const attempted = Object.keys(answers).length;
             const wrong = attempted - myCorrect;
+            const myScore = (myCorrect - (wrong * gameNeg)).toFixed(2);
+            
+            const accuracy = attempted > 0 ? Math.round((myCorrect / attempted) * 100) : 0;
+            const maxScore = scores.length > 0 ? parseFloat(scores[0].score) : myScore;
+            const avgScore = scores.length > 0 ? (scores.reduce((a,b)=>a+parseFloat(b.score),0) / scores.length).toFixed(1) : myScore;
+            
+            const pCorrect = Math.round((myCorrect / questions.length) * 100);
+            const pWrong = Math.round((wrong / questions.length) * 100);
+            const pSkip = 100 - pCorrect - pWrong;
             
             return (
-             <div className="min-h-screen p-4 flex justify-center">
-                    <div className="glass-card w-full max-w-2xl p-6 h-fit">
-                        <div className="text-center mb-6"><Icons.Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-2"/><h2 className="text-2xl font-bold">Results</h2></div>
+             <div className="min-h-screen p-4 flex justify-center bg-gray-50 custom-scroll overflow-y-auto">
+                    <div className="glass-card w-full max-w-4xl p-6 h-fit mb-8 animate-fade-in">
+                        <div className="text-center mb-8 border-b pb-6">
+                            <Icons.Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-2 drop-shadow-lg"/>
+                            <h2 className="text-3xl font-bold text-gray-800">Result Analytics</h2>
+                            <div className="text-sm text-gray-500 font-bold mt-1 uppercase tracking-widest">{gameSubject}</div>
+                        </div>
                         
-                        {/* RESTORED STATS GRID */}
-                        <div className="grid grid-cols-4 gap-2 mb-6 text-center">
-                            <div className="bg-gray-50 p-2 rounded border"><div className="text-xs text-gray-500">Total</div><div className="font-bold">{questions.length}</div></div>
-                            <div className="bg-blue-50 p-2 rounded border border-blue-100"><div className="text-xs text-blue-500">Attempted</div><div className="font-bold">{attempted}</div></div>
-                            <div className="bg-green-50 p-2 rounded border border-green-100"><div className="text-xs text-green-500">Correct</div><div className="font-bold">{myCorrect}</div></div>
-                            <div className="bg-red-50 p-2 rounded border border-red-100"><div className="text-xs text-red-500">Wrong</div><div className="font-bold">{wrong}</div></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col items-center justify-center">
+                                <h3 className="font-bold text-gray-600 mb-4 text-sm uppercase">Accuracy Distribution</h3>
+                                <div className="relative w-40 h-40 rounded-full flex items-center justify-center shadow-inner"
+                                     style={{background: `conic-gradient(#22c55e 0% ${pCorrect}%, #ef4444 ${pCorrect}% ${pCorrect+pWrong}%, #f3f4f6 ${pCorrect+pWrong}% 100%)`}}>
+                                     <div className="w-28 h-28 bg-white rounded-full flex flex-col items-center justify-center shadow-sm z-10">
+                                         <span className="text-3xl font-bold text-gray-800">{accuracy}%</span>
+                                         <span className="text-[10px] font-bold text-gray-400 uppercase">Accuracy</span>
+                                     </div>
+                                </div>
+                                <div className="flex gap-4 mt-4 text-xs font-bold">
+                                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> Correct</div>
+                                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Wrong</div>
+                                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gray-200"></div> Skipped</div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col">
+                                <h3 className="font-bold text-gray-600 mb-6 text-sm uppercase">Competitive Analysis</h3>
+                                <div className="flex-1 flex items-end justify-around gap-4 h-40 pb-2 border-b">
+                                    <div className="flex flex-col items-center gap-2 w-16">
+                                        <div className="text-xs font-bold text-blue-600">{myScore}</div>
+                                        <div style={{height: `${Math.max(10, (myScore/Math.max(1, maxScore))*100)}%`}} className="w-full bg-blue-500 rounded-t-lg shadow-lg animate-bar transition-all"></div>
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase">You</div>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-2 w-16">
+                                        <div className="text-xs font-bold text-purple-600">{avgScore}</div>
+                                        <div style={{height: `${Math.max(10, (avgScore/Math.max(1, maxScore))*100)}%`}} className="w-full bg-purple-400 rounded-t-lg opacity-80 animate-bar transition-all"></div>
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase">Avg</div>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-2 w-16">
+                                        <div className="text-xs font-bold text-yellow-600">{maxScore}</div>
+                                        <div className="w-full h-full bg-yellow-400 rounded-t-lg shadow-lg animate-bar transition-all"></div>
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase">Top</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="bg-gray-100 rounded-lg p-4 mb-6">
-                            <h3 className="font-bold text-center text-lg mb-4 text-purple-700">Leaderboard</h3>
-                            {/* RESTORED BADGES */}
-                            {scores.map((s,i)=><div key={i} className="flex justify-between p-2 border-b last:border-0"><div className="flex items-center gap-2"><span className="font-bold w-6">{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</span><span>{s.name}</span></div><span className="font-bold">{s.score} pts</span></div>)}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 text-center">
+                            <div className="bg-gray-50 p-2 rounded-lg border"><div className="text-xs text-gray-500 font-bold uppercase">Total Qs</div><div className="font-bold text-lg">{questions.length}</div></div>
+                            <div className="bg-blue-50 p-2 rounded-lg border border-blue-100"><div className="text-xs text-blue-500 font-bold uppercase">Attempted</div><div className="font-bold text-lg">{attempted}</div></div>
+                            <div className="bg-green-50 p-2 rounded-lg border border-green-100"><div className="text-xs text-green-500 font-bold uppercase">Correct</div><div className="font-bold text-lg">{myCorrect}</div></div>
+                            <div className="bg-red-50 p-2 rounded-lg border border-red-100"><div className="text-xs text-red-500 font-bold uppercase">Wrong</div><div className="font-bold text-lg">{wrong}</div></div>
+                        </div>
+
+                        <div className="bg-gray-800 text-white rounded-xl p-4 mb-6 shadow-lg">
+                            <h3 className="font-bold text-center text-sm uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">🏆 Leaderboard</h3>
+                            <div className="max-h-40 overflow-y-auto custom-scroll">
+                                {scores.map((s,i)=><div key={i} className="flex justify-between p-2 border-b border-gray-700 last:border-0 hover:bg-gray-700 rounded transition"><div className="flex items-center gap-3"><span className="font-bold w-6 text-yellow-400">{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</span><span className="text-sm font-medium">{s.name}</span></div><span className="font-bold text-green-400">{s.score}</span></div>)}
+                            </div>
                         </div>
                         
-                         <div className="space-y-4"><h3 className="font-bold text-gray-500 text-xs uppercase">Mistakes</h3>{questions.map((q, i) => { 
+                         <div className="space-y-4">
+                            <h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Detailed Review & Mistakes</h3>
+                            {questions.map((q, i) => { 
                              const u = answers[i]; 
                              const c = q.correct;
                              let match = false;
                              if(u && c) { if (u.toLowerCase() === String(c).toLowerCase() || (String(c).toLowerCase().includes(u.toLowerCase()))) match = true; }
+                             
                              if (match) return null; 
-                             return ( <div key={i} className="bg-red-50 p-4 rounded-lg border border-red-100 text-sm"><div className="font-bold text-gray-800 mb-2">{q.q}</div><div className="grid grid-cols-2 gap-2"><div className="text-red-600 font-bold">You: <span className="font-normal">{u||"Skipped"}</span></div><div className="text-green-600 font-bold">Correct: <span className="font-normal">{c}</span></div></div></div> ); })}</div>
-                        <button onClick={()=>window.location.reload()} className="w-full btn-primary py-3 rounded-lg font-bold mt-6">Home</button>
+                             return ( 
+                                <div key={i} className={`p-4 rounded-lg border text-sm ${u ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-200'}`}>
+                                    <div className="font-bold text-gray-800 mb-2 leading-relaxed">
+                                        {q.q}
+                                    </div>
+                                    <div className="flex flex-col md:flex-row gap-2 text-xs">
+                                        <div className={`font-bold px-2 py-1 rounded w-fit ${u ? 'text-red-700 bg-red-100' : 'text-gray-500 bg-gray-200'}`}>You: <span className="font-normal">{u||"Skipped"}</span></div>
+                                        <div className="text-green-700 bg-green-100 px-2 py-1 rounded font-bold w-fit">Correct: <span className="font-normal">{c}</span></div>
+                                    </div>
+                                </div> 
+                             ); 
+                            })}
+                        </div>
+                        <button onClick={()=>window.location.reload()} className="w-full btn-primary py-4 rounded-xl font-bold mt-8 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">Return to Home</button>
                     </div>
              </div>
             );
@@ -1129,14 +1505,21 @@
         const [user, setUser] = useState(null);
         const [screen, setScreen] = useState('landing');
         const [loading, setLoading] = useState(true);
-        // UPDATED: RETAIN V1.4 ABOUT AND CONTACT MODALS
         const [showAbout, setShowAbout] = useState(false);
         const [showContact, setShowContact] = useState(false);
         const [contactLinks, setContactLinks] = useState({});
 
         useEffect(() => { 
-            auth.onAuthStateChanged(u => { if(u){setUser(u); setScreen(u.email===ADMIN_EMAIL||u.email===ADMIN_EMAIL_HARDCODED?'admin':'user');}else{setUser(null);setScreen('landing');} setLoading(false); });
-            // Load contact links for global usage if needed
+            auth.onAuthStateChanged(u => { 
+                if(u) {
+                    setUser(u); 
+                    setScreen(ADMIN_EMAILS.includes(u.email) ? 'admin' : 'user');
+                } else {
+                    setUser(null);
+                    setScreen('landing');
+                } 
+                setLoading(false); 
+            });
             db.ref('settings/contact').on('value', s => { if(s.val()) setContactLinks(s.val()); });
         }, []);
 
